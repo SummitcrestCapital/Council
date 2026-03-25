@@ -1,152 +1,98 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Council Powered by Summitcrest</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <main class="page-shell">
-      <header class="brand-header">
-        <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 128 128" role="img" aria-label="Summitcrest inspired mark">
-            <circle cx="64" cy="64" r="58" class="mark-outer" /><circle cx="64" cy="64" r="47" class="mark-inner" />
-            <path d="M31 76 L52 45 L66 64 L82 38 L100 76" class="mark-mountain" /><path d="M28 80 H100" class="mark-line" /><path d="M38 88 C48 84, 57 92, 67 88 C76 84, 84 92, 94 88" class="mark-wave" />
-          </svg>
-        </div>
-        <div class="brand-copy"><p class="eyebrow">Powered by Summitcrest</p><h1>Council</h1><p class="subtitle">Mock investment council experiences for modern learners.</p></div>
-      </header>
-
-      <section id="signup-screen" class="panel" aria-labelledby="signup-title">
-        <h2 id="signup-title">Create your account</h2>
-        <p class="panel-text">Start your council journey in under a minute.</p>
-        <form id="signup-form" class="signup-form">
-          <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
-          <label>Email<input type="email" name="email" required autocomplete="email" /></label>
-          <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
-          <button type="submit" class="primary-btn">Create account</button>
-        </form>
-      </section>
-
-      <section id="mode-screen" class="panel hidden">
-        <h2>Choose your path</h2>
-        <p class="panel-text">Pick your Council experience.</p>
-        <div class="mode-options">
-          <button id="individual-btn" class="mode-btn primary-btn" type="button">Learn on your own</button>
-          <button id="club-btn" class="mode-btn secondary" type="button">Join a club</button>
-          <button id="class-btn" class="mode-btn secondary" type="button">Join a class</button>
-        </div>
-
-        <form id="group-actions" class="hidden flow-block">
-          <h3 id="group-title">Club setup</h3>
-          <label>Club name<input id="group-space-name" type="text" placeholder="Summitcrest Capital Club" /></label>
-          <label>Club description (optional)<textarea id="group-description" rows="3" placeholder="What is this club about?"></textarea></label>
-          <button id="create-group-btn" class="primary-btn" type="submit">Create club</button>
-
-          <label>Or join with code<input id="group-join-code" type="text" placeholder="ABC123" maxlength="8" /></label>
-          <button id="join-group-btn" class="secondary" type="button">Join club</button>
-        </form>
-      </section>
-
-      <section id="club-role-screen" class="panel hidden">
-        <h2>Choose your role</h2>
-        <p class="panel-text">Pick your role in this club.</p>
-        <div class="mode-options">
-          <button id="pick-pm-btn" class="primary-btn" type="button">Portfolio Manager</button>
-          <button id="pick-analyst-btn" class="secondary" type="button">Analyst</button>
-        </div>
-      </section>
-
-      <section id="cycle-screen" class="panel hidden">
-        <h2>Join this month’s cycle</h2>
-        <p class="panel-text" id="cycle-info"></p>
-        <button id="join-cycle-btn" class="primary-btn" type="button">Join this cycle</button>
-        <div id="ticker-step" class="hidden flow-block">
-          <h3>Choose your stock</h3>
-          <p class="panel-text">Pick a stock in your assigned sector. This selection will be locked after confirmation.</p>
-          <label>Stock ticker<input id="ticker-input" type="text" maxlength="8" placeholder="AAPL" /></label>
-          <button id="lock-ticker-btn" class="primary-btn" type="button">Lock in ticker</button>
-        </div>
-      </section>
-
-      <section id="club-dashboard" class="panel hidden">
-        <h2 id="club-name"></h2>
-        <p id="club-role-line" class="panel-text"></p>
-        <div class="dashboard-grid">
-          <article class="dash-card"><h3>Members</h3><ul id="club-members"></ul></article>
-          <article class="dash-card"><h3>Current cycle</h3><p id="club-cycle"></p></article>
-          <article class="dash-card"><h3>Leaderboard</h3><p id="club-leaderboard">Leaderboard placeholder</p></article>
-          <article class="dash-card"><h3>Submitted pitches</h3><ul id="club-pitches"></ul></article>
-        </div>
-
-        <div id="executive-controls" class="dash-card hidden" style="margin-top:1rem;">
-          <h3>Create custom group + assign sector</h3>
-          <label>Group name<input id="club-group-name" type="text" /></label>
-          <label>Sector<select id="club-group-sector"><option>Technology</option><option>Healthcare</option><option>Financials</option><option>Energy</option><option>Consumer</option></select></label>
-          <label>Members (comma separated names)<input id="club-group-members" type="text" placeholder="Alice, Bob" /></label>
-          <button id="create-club-group-btn" class="primary-btn" type="button">Create group</button>
-        </div>
-
-        <div class="dash-card" style="margin-top:1rem;">
-          <h3>Groups</h3>
-          <div id="club-groups-list"></div>
-        </div>
-      </section>
-
-      <section id="pitch-hub" class="panel hidden">
-        <div class="hub-header"><h2>Pitch Hub</h2><p id="status-pill" class="status-pill">Not started</p></div>
-        <div class="dashboard-grid">
-          <article class="dash-card"><h3>Cycle header</h3><p id="hub-cycle"></p><p id="hub-sector"></p><p id="hub-countdown"></p></article>
-          <article class="dash-card"><h3>Your Pick</h3><p id="hub-ticker"></p><p id="hub-company"></p><p id="hub-locked">Locked for this cycle</p></article>
-          <article class="dash-card"><h3>Progress Tracker</h3><p id="progress-percent">0% complete</p><ul id="progress-list"></ul></article>
-          <article class="dash-card"><h3>Deadline Reminder</h3><p id="deadline-text"></p></article>
-        </div>
-
-        <article class="dash-card wide-card slide-shell">
-          <div class="slide-nav"><button id="prev-slide-btn" class="secondary" type="button">Previous</button><p id="slide-position"></p><button id="next-slide-btn" class="secondary" type="button">Next</button></div>
-          <h3 id="slide-title"></h3><p id="slide-prompt" class="prompt-text"></p>
-          <div class="guidance-grid"><div><h4>Helper Guidance</h4><ul id="slide-helper"></ul></div><div><h4>What to Look For</h4><ul id="slide-lookfor"></ul></div></div>
-          <button id="toggle-shortcuts-btn" class="secondary" type="button">Show research shortcuts</button>
-          <div id="slide-shortcuts" class="hidden"><h4>Research Shortcuts</h4><ul id="slide-shortcuts-list"></ul></div>
-          <div id="slide-extra-fields" class="hidden"></div>
-          <label>Image uploads (optional, 1–3)<input id="slide-image-upload" type="file" accept="image/*" multiple /></label>
-          <p id="slide-image-hint" class="panel-text"></p>
-          <div id="slide-image-preview" class="image-preview-grid"></div>
-          <label>Your input<textarea id="slide-input" rows="7" placeholder="Write your response for this section..."></textarea></label>
-          <button id="save-slide-btn" class="primary-btn" type="button">Save section response</button>
-        </article>
-
-        <article class="dash-card">
-          <h3>Submit</h3>
-          <button id="submit-pitch-btn" class="primary-btn" type="button" disabled>Submit Pitch</button>
-          <button id="view-presentation-btn" class="secondary hidden" type="button">View completed presentation</button>
-          <p id="submit-note" class="panel-text">Complete all sections to submit.</p>
-        </article>
-      </section>
-
-      <section id="group-hub" class="panel hidden">
-        <h2 id="group-hub-title"></h2><p id="group-hub-subtitle" class="panel-text"></p><div id="group-hub-cards" class="dashboard-grid"></div>
-      </section>
-
-      <section id="presentation-view" class="panel hidden presentation-shell">
-        <div class="hub-header"><h2>Completed Presentation</h2><button id="back-to-hub-btn" class="secondary" type="button">Back to Pitch Hub</button></div>
-        <div id="presentation-slides" class="presentation-single"></div>
-        <div class="slide-nav presentation-nav">
-          <button id="presentation-prev-btn" class="secondary" type="button">Back</button>
-          <p id="presentation-position"></p>
-          <button id="presentation-next-btn" class="primary-btn" type="button">Next</button>
-        </div>
-      </section>
-    </main>
-
-    <div id="lock-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lock-modal-title">
-      <div class="modal-card"><h3 id="lock-modal-title">Confirm your official pick</h3><p>This will be your official pick for this cycle. You won’t be able to change it after continuing.</p><div class="modal-actions"><button id="confirm-lock-btn" class="primary-btn" type="button">Confirm</button><button id="cancel-lock-btn" class="secondary" type="button">Go back</button></div></div>
-    </div>
-
-    <script src="app.js"></script>
-  </body>
-</html>
+diff --git a/index.html b/index.html
+index f6e1c077e78c7d8d484b75a085c33339c805978e..5639651eb91af1a6481e38404837aba6afc8f189 100644
+--- a/index.html
++++ b/index.html
+@@ -1,56 +1,60 @@
+ <!doctype html>
+ <html lang="en">
+   <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>Council Powered by Summitcrest</title>
+     <link rel="preconnect" href="https://fonts.googleapis.com" />
+     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+     <link rel="stylesheet" href="styles.css" />
+   </head>
+   <body>
+     <main class="page-shell">
+       <header class="brand-header">
+         <div class="brand-mark" aria-hidden="true">
+           <svg viewBox="0 0 128 128" role="img" aria-label="Summitcrest inspired mark">
+             <circle cx="64" cy="64" r="58" class="mark-outer" /><circle cx="64" cy="64" r="47" class="mark-inner" />
+             <path d="M31 76 L52 45 L66 64 L82 38 L100 76" class="mark-mountain" /><path d="M28 80 H100" class="mark-line" /><path d="M38 88 C48 84, 57 92, 67 88 C76 84, 84 92, 94 88" class="mark-wave" />
+           </svg>
+         </div>
+         <div class="brand-copy"><p class="eyebrow">Powered by Summitcrest</p><h1>Council</h1><p class="subtitle">Mock investment council experiences for modern learners.</p></div>
++        <button id="signout-btn" class="secondary hidden" type="button">Sign out</button>
+       </header>
+ 
+       <section id="signup-screen" class="panel" aria-labelledby="signup-title">
+-        <h2 id="signup-title">Create your account</h2>
+-        <p class="panel-text">Start your council journey in under a minute.</p>
++        <h2 id="auth-title">Create your account</h2>
++        <p id="auth-description" class="panel-text">Start your council journey in under a minute.</p>
+         <form id="signup-form" class="signup-form">
++          <input id="auth-mode" type="hidden" name="authMode" value="signup" />
+           <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
+           <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+           <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
+-          <button type="submit" class="primary-btn">Create account</button>
++          <button id="auth-submit-btn" type="submit" class="primary-btn">Create account</button>
++          <button id="auth-toggle-btn" type="button" class="secondary">Already have an account? Sign in</button>
++          <p id="auth-error" class="panel-text" style="color:#fca5a5;"></p>
+         </form>
+       </section>
+ 
+       <section id="mode-screen" class="panel hidden">
+         <h2>Choose your path</h2>
+         <p class="panel-text">Pick your Council experience.</p>
+         <div class="mode-options">
+           <button id="individual-btn" class="mode-btn primary-btn" type="button">Learn on your own</button>
+           <button id="club-btn" class="mode-btn secondary" type="button">Join a club</button>
+           <button id="class-btn" class="mode-btn secondary" type="button">Join a class</button>
+         </div>
+ 
+         <form id="group-actions" class="hidden flow-block">
+           <h3 id="group-title">Club setup</h3>
+           <label>Club name<input id="group-space-name" type="text" placeholder="Summitcrest Capital Club" /></label>
+           <label>Club description (optional)<textarea id="group-description" rows="3" placeholder="What is this club about?"></textarea></label>
+           <button id="create-group-btn" class="primary-btn" type="submit">Create club</button>
+ 
+           <label>Or join with code<input id="group-join-code" type="text" placeholder="ABC123" maxlength="8" /></label>
+           <button id="join-group-btn" class="secondary" type="button">Join club</button>
+         </form>
+       </section>
+ 
+       <section id="club-role-screen" class="panel hidden">
+         <h2>Choose your role</h2>
+@@ -125,28 +129,29 @@
+           <button id="submit-pitch-btn" class="primary-btn" type="button" disabled>Submit Pitch</button>
+           <button id="view-presentation-btn" class="secondary hidden" type="button">View completed presentation</button>
+           <p id="submit-note" class="panel-text">Complete all sections to submit.</p>
+         </article>
+       </section>
+ 
+       <section id="group-hub" class="panel hidden">
+         <h2 id="group-hub-title"></h2><p id="group-hub-subtitle" class="panel-text"></p><div id="group-hub-cards" class="dashboard-grid"></div>
+       </section>
+ 
+       <section id="presentation-view" class="panel hidden presentation-shell">
+         <div class="hub-header"><h2>Completed Presentation</h2><button id="back-to-hub-btn" class="secondary" type="button">Back to Pitch Hub</button></div>
+         <div id="presentation-slides" class="presentation-single"></div>
+         <div class="slide-nav presentation-nav">
+           <button id="presentation-prev-btn" class="secondary" type="button">Back</button>
+           <p id="presentation-position"></p>
+           <button id="presentation-next-btn" class="primary-btn" type="button">Next</button>
+         </div>
+       </section>
+     </main>
+ 
+     <div id="lock-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lock-modal-title">
+       <div class="modal-card"><h3 id="lock-modal-title">Confirm your official pick</h3><p>This will be your official pick for this cycle. You won’t be able to change it after continuing.</p><div class="modal-actions"><button id="confirm-lock-btn" class="primary-btn" type="button">Confirm</button><button id="cancel-lock-btn" class="secondary" type="button">Go back</button></div></div>
+     </div>
+ 
++    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+     <script src="app.js"></script>
+   </body>
+ </html>
