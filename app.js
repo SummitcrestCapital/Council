@@ -1,7 +1,74 @@
-const DB_KEY = 'council-db-v3';
+const DB_KEY = 'council-db-v4';
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
-const PITCH_SECTIONS = ['Thesis', 'Business Understanding', 'Upside', 'Risks', 'Valuation', 'Final Call'];
-const MIN_REQUIRED_SECTIONS = 4;
+const MIN_REQUIRED_SECTIONS = 7;
+
+const HUB_SLIDES = [
+  {
+    key: 'executive_summary',
+    title: '1. Executive Summary',
+    prompt: 'What is your overall recommendation and why?',
+    helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'],
+    lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'],
+    shortcuts: ['None needed — this is YOUR synthesis.'],
+    placeholder: 'Write 3–5 bullets.',
+  },
+  {
+    key: 'company_overview',
+    title: '2. Company Overview',
+    prompt: 'Explain the company and how it operates.',
+    helper: ['What does the company do?', 'How does it make money?', 'Who are its customers?', 'What makes it different?'],
+    lookFor: ['Clear business model.', 'Revenue sources.', 'Competitive advantage (moat).', 'Key segments.', 'Basic management insight (optional for MVP).'],
+    shortcuts: ['Company website → About', 'Yahoo Finance → Profile', 'Google: “how does [company] make money”'],
+    placeholder: 'Paragraph or bullet mix (4–8 sentences).',
+  },
+  {
+    key: 'industry_overview',
+    title: '3. Industry Overview',
+    prompt: 'What industry does this company operate in and what is happening in it?',
+    helper: ['How big is the industry?', 'Is it growing or shrinking?', 'What trends are shaping it?', 'Who are the competitors?'],
+    lookFor: ['Industry size or importance.', 'Growth trends.', 'Major players.', 'Tailwinds (AI, healthcare, etc.).', 'Headwinds (regulation, slowdown).'],
+    shortcuts: ['Google: “[industry] market size growth”', 'Google: “[company] competitors”', 'News on industry trends'],
+    placeholder: 'Paragraph or bullets.',
+  },
+  {
+    key: 'stock_analysis',
+    title: '4. Stock Analysis (Metrics + Comparison)',
+    prompt: 'What do the numbers tell you about this company?',
+    helper: ['Look at key financial metrics.', 'Compare to competitors or market.', 'Identify what stands out.'],
+    lookFor: ['P/E ratio.', 'Revenue growth.', 'Profit margins.', 'Comparison vs competitors.', 'Comparison vs S&P 500 (basic).'],
+    shortcuts: ['Yahoo Finance → Key Statistics', 'Google: “[company] PE ratio”', 'Google: “[company] vs competitors”'],
+    placeholder: 'Short explanation + key stats.',
+    extra: 'metrics',
+  },
+  {
+    key: 'thesis',
+    title: '5. Thesis (Core Section)',
+    prompt: 'What is the unique opportunity here?',
+    helper: ['What is NOT fully understood by the market?', 'Why is this stock mispriced?', 'What makes this special?'],
+    lookFor: ['Specific, not generic.', '“Hidden value” or overlooked factor.', 'Clear reasoning.', 'Not just “good company”.'],
+    shortcuts: ['Earnings reports (summary)', 'News about company strategy', 'Analyst opinions (optional)'],
+    placeholder: '1–2 strong paragraphs.',
+  },
+  {
+    key: 'catalysts',
+    title: '6. Catalysts (Upside + Risks + Scenarios)',
+    prompt: 'What events could drive this stock up or down?',
+    helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'],
+    lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'],
+    shortcuts: ['Google: “[company] outlook”', 'News: “[company] growth plans”', 'Google: “[company] risks”'],
+    placeholder: 'Bullets split into Upside and Risks.',
+  },
+  {
+    key: 'conclusion',
+    title: '7. Conclusion',
+    prompt: 'What is your final investment decision?',
+    helper: ['Should someone buy this now?', 'Is this short-term or long-term?', 'How confident are you?'],
+    lookFor: ['Clear recommendation.', 'Consistent with thesis.', 'Time horizon awareness.'],
+    shortcuts: [],
+    placeholder: 'Final decision notes.',
+    extra: 'conclusion',
+  },
+];
 
 const signupScreen = document.querySelector('#signup-screen');
 const modeScreen = document.querySelector('#mode-screen');
@@ -38,15 +105,23 @@ const hubTicker = document.querySelector('#hub-ticker');
 const hubCompany = document.querySelector('#hub-company');
 const progressPercent = document.querySelector('#progress-percent');
 const progressList = document.querySelector('#progress-list');
-const sectionCards = document.querySelector('#section-cards');
 const submitPitchBtn = document.querySelector('#submit-pitch-btn');
 const submitNote = document.querySelector('#submit-note');
 const deadlineText = document.querySelector('#deadline-text');
 
-const editorBox = document.querySelector('#editor-box');
-const editorTitle = document.querySelector('#editor-title');
-const editorText = document.querySelector('#editor-text');
-const saveSectionBtn = document.querySelector('#save-section-btn');
+const prevSlideBtn = document.querySelector('#prev-slide-btn');
+const nextSlideBtn = document.querySelector('#next-slide-btn');
+const slidePosition = document.querySelector('#slide-position');
+const slideTitle = document.querySelector('#slide-title');
+const slidePrompt = document.querySelector('#slide-prompt');
+const slideHelper = document.querySelector('#slide-helper');
+const slideLookfor = document.querySelector('#slide-lookfor');
+const toggleShortcutsBtn = document.querySelector('#toggle-shortcuts-btn');
+const slideShortcuts = document.querySelector('#slide-shortcuts');
+const slideShortcutsList = document.querySelector('#slide-shortcuts-list');
+const slideInput = document.querySelector('#slide-input');
+const slideExtraFields = document.querySelector('#slide-extra-fields');
+const saveSlideBtn = document.querySelector('#save-slide-btn');
 
 const groupHubTitle = document.querySelector('#group-hub-title');
 const groupHubSubtitle = document.querySelector('#group-hub-subtitle');
@@ -56,12 +131,11 @@ let db = loadDb();
 let currentUser = null;
 let activeSession = null;
 let activeGroupType = null;
-let currentEditSection = null;
+let currentSlideIndex = 0;
 
 function loadDb() {
   const saved = localStorage.getItem(DB_KEY);
   if (!saved) return { users: [], sessions: [], spaces: [] };
-
   try {
     const parsed = JSON.parse(saved);
     return {
@@ -77,74 +151,54 @@ function loadDb() {
 function saveDb() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 function makeId(prefix) { return `${prefix}_${Math.random().toString(36).slice(2, 10)}`; }
 function generateJoinCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
-
-function currentCycleName() {
-  return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
-}
-function cycleDeadline() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-}
-function daysUntilDeadline() {
-  const diff = cycleDeadline().getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
+function currentCycleName() { return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }); }
+function cycleDeadline() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); }
+function daysUntilDeadline() { return Math.max(0, Math.ceil((cycleDeadline().getTime() - Date.now()) / 86400000)); }
 
 function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
-  db.users.push(user);
-  saveDb();
-  return user;
+  db.users.push(user); saveDb(); return user;
+}
+
+function emptySlideResponses() {
+  return Object.fromEntries(HUB_SLIDES.map((slide) => [slide.key, { input: '', extras: {} }]));
 }
 
 function getOrCreateSession(userId) {
   const cycleName = currentCycleName();
   let session = db.sessions.find((item) => item.userId === userId && item.cycleName === cycleName);
   if (!session) {
-    const assignedSector = SECTORS[Math.floor(Math.random() * SECTORS.length)];
     session = {
-      id: makeId('session'), userId, cycleName, sector: assignedSector,
+      id: makeId('session'), userId, cycleName,
+      sector: SECTORS[Math.floor(Math.random() * SECTORS.length)],
       joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false,
-      pitch: Object.fromEntries(PITCH_SECTIONS.map((section) => [section, ''])),
+      slideResponses: emptySlideResponses(),
       submittedAt: null, createdAt: new Date().toISOString(),
     };
-    db.sessions.push(session);
-    saveDb();
+    db.sessions.push(session); saveDb();
+  }
+  if (!session.slideResponses) {
+    session.slideResponses = emptySlideResponses(); saveDb();
   }
   return session;
 }
 
 function createGroupSpace(type, name, ownerId) {
   const role = type === 'club' ? 'leader' : 'teacher';
-  const space = {
-    id: makeId('space'),
-    type,
-    name,
-    joinCode: generateJoinCode(),
-    ownerId,
-    members: [{ userId: ownerId, role }],
-    createdAt: new Date().toISOString(),
-  };
-  db.spaces.push(space);
-  saveDb();
-  return { space, role };
+  const space = { id: makeId('space'), type, name, joinCode: generateJoinCode(), ownerId, members: [{ userId: ownerId, role }], createdAt: new Date().toISOString() };
+  db.spaces.push(space); saveDb(); return { space, role };
 }
 
 function joinGroupSpace(type, code, userId) {
   const normalized = code.trim().toUpperCase();
   if (!/^[A-Z0-9]{6,8}$/.test(normalized)) return { error: 'invalid' };
-
   const space = db.spaces.find((candidate) => candidate.joinCode === normalized);
   if (!space) return { error: 'not_found' };
   if (space.type !== type) return { error: 'wrong_type' };
-
   const existing = space.members.find((member) => member.userId === userId);
   if (existing) return { space, role: existing.role };
-
   const role = type === 'club' ? 'member' : 'student';
-  space.members.push({ userId, role });
-  saveDb();
-  return { space, role };
+  space.members.push({ userId, role }); saveDb(); return { space, role };
 }
 
 function hideAllMainScreens() {
@@ -159,7 +213,6 @@ function renderCycleStep() {
   joinCycleBtn.disabled = activeSession.joinedCycle;
   joinCycleBtn.textContent = activeSession.joinedCycle ? 'Joined (locked)' : 'Join this cycle';
   tickerStep.classList.toggle('hidden', !activeSession.joinedCycle);
-
   tickerInput.value = activeSession.ticker;
   tickerInput.disabled = activeSession.tickerLocked;
   lockTickerBtn.disabled = activeSession.tickerLocked;
@@ -168,18 +221,86 @@ function renderCycleStep() {
 
 function statusForSession(session) {
   if (session.submittedAt) return 'Submitted';
-  const completed = PITCH_SECTIONS.filter((name) => session.pitch[name]?.trim()).length;
+  const completed = HUB_SLIDES.filter((slide) => session.slideResponses[slide.key]?.input?.trim()).length;
   return completed > 0 ? 'In progress' : 'Not started';
 }
 
+function renderSlide() {
+  const slide = HUB_SLIDES[currentSlideIndex];
+  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {} };
+
+  slidePosition.textContent = `Section ${currentSlideIndex + 1} of ${HUB_SLIDES.length}`;
+  slideTitle.textContent = slide.title;
+  slidePrompt.textContent = `Prompt: ${slide.prompt}`;
+  slideHelper.innerHTML = slide.helper.map((item) => `<li>${item}</li>`).join('');
+  slideLookfor.innerHTML = slide.lookFor.map((item) => `<li>${item}</li>`).join('');
+
+  slideShortcutsList.innerHTML = slide.shortcuts.length
+    ? slide.shortcuts.map((item) => `<li>${item}</li>`).join('')
+    : '<li>No shortcuts for this section.</li>';
+  toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden')
+    ? 'Show research shortcuts'
+    : 'Hide research shortcuts';
+
+  slideInput.placeholder = slide.placeholder;
+  slideInput.value = response.input || '';
+
+  slideExtraFields.classList.add('hidden');
+  slideExtraFields.innerHTML = '';
+
+  if (slide.extra === 'metrics') {
+    slideExtraFields.classList.remove('hidden');
+    const metrics = response.extras.metrics || ['', '', ''];
+    slideExtraFields.innerHTML = `
+      <h4>Optional: Add 2–3 metrics</h4>
+      <div class="mode-options">
+        <input data-metric-index="0" placeholder="Metric 1 (e.g., P/E: 24.3)" value="${metrics[0] || ''}" />
+        <input data-metric-index="1" placeholder="Metric 2" value="${metrics[1] || ''}" />
+        <input data-metric-index="2" placeholder="Metric 3" value="${metrics[2] || ''}" />
+      </div>
+    `;
+  }
+
+  if (slide.extra === 'conclusion') {
+    const rec = response.extras.recommendation || 'Watch';
+    const horizon = response.extras.horizon || 'medium';
+    const confidence = response.extras.confidence || '5';
+    slideExtraFields.classList.remove('hidden');
+    slideExtraFields.innerHTML = `
+      <h4>Decision details</h4>
+      <div class="mode-options">
+        <label>Recommendation
+          <select id="conclusion-rec">
+            <option ${rec === 'Buy' ? 'selected' : ''}>Buy</option>
+            <option ${rec === 'Watch' ? 'selected' : ''}>Watch</option>
+            <option ${rec === 'Avoid' ? 'selected' : ''}>Avoid</option>
+          </select>
+        </label>
+        <label>Time horizon
+          <select id="conclusion-horizon">
+            <option value="short" ${horizon === 'short' ? 'selected' : ''}>Short</option>
+            <option value="medium" ${horizon === 'medium' ? 'selected' : ''}>Medium</option>
+            <option value="long" ${horizon === 'long' ? 'selected' : ''}>Long</option>
+          </select>
+        </label>
+        <label>Confidence (1–10)
+          <input id="conclusion-confidence" type="number" min="1" max="10" value="${confidence}" />
+        </label>
+      </div>
+    `;
+  }
+
+  prevSlideBtn.disabled = currentSlideIndex === 0;
+  nextSlideBtn.disabled = currentSlideIndex === HUB_SLIDES.length - 1;
+}
+
 function renderProgress() {
-  const completed = PITCH_SECTIONS.filter((name) => activeSession.pitch[name]?.trim()).length;
-  const percent = Math.round((completed / PITCH_SECTIONS.length) * 100);
+  const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
+  const percent = Math.round((completed / HUB_SLIDES.length) * 100);
   progressPercent.textContent = `${percent}% complete`;
-  progressList.innerHTML = PITCH_SECTIONS.map((section) => `<li>${activeSession.pitch[section]?.trim() ? '✅' : '⬜'} ${section}</li>`).join('');
-  sectionCards.innerHTML = PITCH_SECTIONS.map((section) => {
-    const done = Boolean(activeSession.pitch[section]?.trim());
-    return `<div class="section-card ${done ? 'complete' : ''}"><strong>${section}</strong><p>${done ? 'Status: complete' : 'Status: incomplete'}</p><button type="button" data-edit-section="${section}" class="primary-btn">${done ? 'Edit' : 'Start'}</button></div>`;
+  progressList.innerHTML = HUB_SLIDES.map((slide) => {
+    const done = Boolean(activeSession.slideResponses[slide.key]?.input?.trim());
+    return `<li>${done ? '✅' : '⬜'} ${slide.title}</li>`;
   }).join('');
 
   const canSubmit = completed >= MIN_REQUIRED_SECTIONS && !activeSession.submittedAt;
@@ -188,7 +309,7 @@ function renderProgress() {
     ? 'Pitch submitted. Everything is now locked.'
     : canSubmit
       ? 'Ready to submit your pitch.'
-      : `Complete at least ${MIN_REQUIRED_SECTIONS} sections to submit.`;
+      : `Complete all ${MIN_REQUIRED_SECTIONS} sections to submit.`;
 }
 
 function renderPitchHub() {
@@ -202,6 +323,7 @@ function renderPitchHub() {
   hubCompany.textContent = `Company: ${activeSession.ticker} (name lookup coming soon)`;
   deadlineText.textContent = `${daysUntilDeadline()} days left to submit.`;
   renderProgress();
+  renderSlide();
 }
 
 function renderGroupHub(space, role) {
@@ -209,34 +331,19 @@ function renderGroupHub(space, role) {
   groupHub.classList.remove('hidden');
   groupHubTitle.textContent = `${space.type === 'club' ? 'Club' : 'Class'} dashboard`;
   groupHubSubtitle.textContent = `${space.name} • Role: ${role} • Join code: ${space.joinCode}`;
-
   const memberList = space.members.map((member) => `<li>${member.role}</li>`).join('');
-  if (space.type === 'club') {
-    groupHubCards.innerHTML = `
-      <article class="dash-card"><h3>Club name</h3><p>${space.name}</p></article>
+
+  groupHubCards.innerHTML = space.type === 'club'
+    ? `<article class="dash-card"><h3>Club name</h3><p>${space.name}</p></article>
       <article class="dash-card"><h3>Members</h3><ul>${memberList}</ul></article>
       <article class="dash-card"><h3>Cycle section</h3><p>Club cycle placeholder</p></article>
       <article class="dash-card"><h3>Leaderboard</h3><p>Leaderboard placeholder</p></article>
-      <article class="dash-card"><h3>Admin controls</h3><p>${role === 'leader' ? 'Manage club settings enabled.' : 'View-only member.'}</p></article>
-    `;
-    return;
-  }
-
-  groupHubCards.innerHTML = `
-    <article class="dash-card"><h3>Class name</h3><p>${space.name}</p></article>
-    <article class="dash-card"><h3>Assignments</h3><p>Assignments placeholder</p></article>
-    <article class="dash-card"><h3>Student roster</h3><ul>${memberList}</ul></article>
-    <article class="dash-card"><h3>Due dates</h3><p>Due dates placeholder</p></article>
-    <article class="dash-card"><h3>Teacher controls</h3><p>${role === 'teacher' ? 'Grading enabled.' : 'Student view only.'}</p></article>
-  `;
-}
-
-function openEditor(sectionName) {
-  if (!activeSession || activeSession.submittedAt) return;
-  currentEditSection = sectionName;
-  editorTitle.textContent = sectionName;
-  editorText.value = activeSession.pitch[sectionName] || '';
-  editorBox.classList.remove('hidden');
+      <article class="dash-card"><h3>Admin controls</h3><p>${role === 'leader' ? 'Manage club settings enabled.' : 'View-only member.'}</p></article>`
+    : `<article class="dash-card"><h3>Class name</h3><p>${space.name}</p></article>
+      <article class="dash-card"><h3>Assignments</h3><p>Assignments placeholder</p></article>
+      <article class="dash-card"><h3>Student roster</h3><ul>${memberList}</ul></article>
+      <article class="dash-card"><h3>Due dates</h3><p>Due dates placeholder</p></article>
+      <article class="dash-card"><h3>Teacher controls</h3><p>${role === 'teacher' ? 'Grading enabled.' : 'Student view only.'}</p></article>`;
 }
 
 signupForm?.addEventListener('submit', (event) => {
@@ -253,6 +360,7 @@ signupForm?.addEventListener('submit', (event) => {
 individualBtn?.addEventListener('click', () => {
   if (!currentUser?.id) return;
   activeSession = getOrCreateSession(currentUser.id);
+  currentSlideIndex = 0;
   hideAllMainScreens();
   cycleScreen.classList.remove('hidden');
   groupActions.classList.add('hidden');
@@ -300,23 +408,51 @@ confirmLockBtn?.addEventListener('click', () => {
 });
 cancelLockBtn?.addEventListener('click', () => lockModal.classList.add('hidden'));
 
-sectionCards?.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-edit-section]');
-  if (!button) return;
-  openEditor(button.dataset.editSection);
+prevSlideBtn?.addEventListener('click', () => {
+  if (currentSlideIndex > 0) {
+    currentSlideIndex -= 1;
+    renderSlide();
+  }
+});
+nextSlideBtn?.addEventListener('click', () => {
+  if (currentSlideIndex < HUB_SLIDES.length - 1) {
+    currentSlideIndex += 1;
+    renderSlide();
+  }
 });
 
-saveSectionBtn?.addEventListener('click', () => {
-  if (!currentEditSection || !activeSession || activeSession.submittedAt) return;
-  activeSession.pitch[currentEditSection] = editorText.value.trim();
+toggleShortcutsBtn?.addEventListener('click', () => {
+  slideShortcuts.classList.toggle('hidden');
+  toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden')
+    ? 'Show research shortcuts'
+    : 'Hide research shortcuts';
+});
+
+saveSlideBtn?.addEventListener('click', () => {
+  if (!activeSession || activeSession.submittedAt) return;
+  const slide = HUB_SLIDES[currentSlideIndex];
+  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {} };
+  response.input = slideInput.value.trim();
+
+  if (slide.extra === 'metrics') {
+    const metricInputs = [...slideExtraFields.querySelectorAll('[data-metric-index]')].map((input) => input.value.trim());
+    response.extras.metrics = metricInputs;
+  }
+
+  if (slide.extra === 'conclusion') {
+    response.extras.recommendation = slideExtraFields.querySelector('#conclusion-rec')?.value || 'Watch';
+    response.extras.horizon = slideExtraFields.querySelector('#conclusion-horizon')?.value || 'medium';
+    response.extras.confidence = slideExtraFields.querySelector('#conclusion-confidence')?.value || '5';
+  }
+
+  activeSession.slideResponses[slide.key] = response;
   saveDb();
-  editorBox.classList.add('hidden');
   renderPitchHub();
 });
 
 submitPitchBtn?.addEventListener('click', () => {
   if (!activeSession || activeSession.submittedAt) return;
-  const completed = PITCH_SECTIONS.filter((name) => activeSession.pitch[name]?.trim()).length;
+  const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
   if (completed < MIN_REQUIRED_SECTIONS) return;
   activeSession.submittedAt = new Date().toISOString();
   saveDb();
@@ -334,11 +470,7 @@ joinGroupBtn?.addEventListener('click', () => {
   if (!activeGroupType || !currentUser?.id || !groupJoinCode.value.trim()) return;
   const result = joinGroupSpace(activeGroupType, groupJoinCode.value, currentUser.id);
   if (result.error) {
-    const errors = {
-      invalid: 'Enter a valid join code.',
-      not_found: 'No matching space found.',
-      wrong_type: 'This code belongs to a different space type.',
-    };
+    const errors = { invalid: 'Enter a valid join code.', not_found: 'No matching space found.', wrong_type: 'This code belongs to a different space type.' };
     groupJoinCode.setCustomValidity(errors[result.error]);
     groupJoinCode.reportValidity();
     return;
