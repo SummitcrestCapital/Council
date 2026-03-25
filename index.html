@@ -28,7 +28,7 @@
           <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
           <label>Email<input type="email" name="email" required autocomplete="email" /></label>
           <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
-          <button type="submit">Create account</button>
+          <button type="submit" class="primary-btn">Create account</button>
         </form>
       </section>
 
@@ -36,9 +36,9 @@
         <h2>Choose your path</h2>
         <p class="panel-text">Pick your Council experience.</p>
         <div class="mode-options">
-          <button id="individual-btn" class="primary-btn" type="button">Learn on your own</button>
-          <button id="club-btn" class="secondary" type="button">Join a club</button>
-          <button id="class-btn" class="secondary" type="button">Join a class</button>
+          <button id="individual-btn" class="mode-btn primary-btn" type="button">Learn on your own</button>
+          <button id="club-btn" class="mode-btn secondary" type="button">Join a club</button>
+          <button id="class-btn" class="mode-btn secondary" type="button">Join a class</button>
         </div>
 
         <form id="group-actions" class="hidden flow-block">
@@ -132,9 +132,14 @@
         <h2 id="group-hub-title"></h2><p id="group-hub-subtitle" class="panel-text"></p><div id="group-hub-cards" class="dashboard-grid"></div>
       </section>
 
-      <section id="presentation-view" class="panel hidden">
+      <section id="presentation-view" class="panel hidden presentation-shell">
         <div class="hub-header"><h2>Completed Presentation</h2><button id="back-to-hub-btn" class="secondary" type="button">Back to Pitch Hub</button></div>
-        <div id="presentation-slides" class="presentation-deck"></div>
+        <div id="presentation-slides" class="presentation-single"></div>
+        <div class="slide-nav presentation-nav">
+          <button id="presentation-prev-btn" class="secondary" type="button">Back</button>
+          <p id="presentation-position"></p>
+          <button id="presentation-next-btn" class="primary-btn" type="button">Next</button>
+        </div>
       </section>
     </main>
 
