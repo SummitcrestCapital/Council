@@ -21,6 +21,38 @@ const MODE_LABELS = {
   class: 'Join a class',
 };
 
+const ROLES = {
+  INDIVIDUAL: 'individual',
+  MEMBER: 'member',
+  LEADER: 'leader',
+  STUDENT: 'student',
+  TEACHER: 'teacher',
+};
+
+const PERMISSIONS = {
+  VIEW: 'view',
+  SUBMIT: 'submit',
+  CREATE_CYCLE: 'create_cycle',
+  CREATE_ASSIGNMENT: 'create_assignment',
+  REVIEW: 'review',
+  GRADE: 'grade',
+  MANAGE_CLUB_SETTINGS: 'manage_club_settings',
+};
+
+const ROLE_PERMISSIONS = {
+  [ROLES.INDIVIDUAL]: [PERMISSIONS.VIEW, PERMISSIONS.SUBMIT],
+  [ROLES.MEMBER]: [PERMISSIONS.VIEW, PERMISSIONS.SUBMIT],
+  [ROLES.LEADER]: [PERMISSIONS.VIEW, PERMISSIONS.SUBMIT, PERMISSIONS.CREATE_CYCLE, PERMISSIONS.MANAGE_CLUB_SETTINGS],
+  [ROLES.STUDENT]: [PERMISSIONS.VIEW, PERMISSIONS.SUBMIT],
+  [ROLES.TEACHER]: [
+    PERMISSIONS.VIEW,
+    PERMISSIONS.SUBMIT,
+    PERMISSIONS.CREATE_ASSIGNMENT,
+    PERMISSIONS.REVIEW,
+    PERMISSIONS.GRADE,
+  ],
+};
+
 let selectedType = null;
 let currentUser = null;
 
@@ -56,6 +88,26 @@ function generateJoinCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+function getCreatorRole(type) {
+  if (type === 'club') return ROLES.LEADER;
+  if (type === 'class') return ROLES.TEACHER;
+  return ROLES.INDIVIDUAL;
+}
+
+function getJoinerRole(type) {
+  if (type === 'club') return ROLES.MEMBER;
+  if (type === 'class') return ROLES.STUDENT;
+  return ROLES.INDIVIDUAL;
+}
+
+function hasPermission(role, permission) {
+  return Boolean(ROLE_PERMISSIONS[role]?.includes(permission));
+}
+
+function validateJoinCode(code) {
+  return /^[A-Z0-9]{6,8}$/.test(code.trim().toUpperCase());
+}
+
 function createUser({ fullName, email }) {
   const user = {
     id: makeId('user'),
@@ -72,6 +124,8 @@ function createUser({ fullName, email }) {
 
 function createSpace({ type, name, ownerId }) {
   const now = new Date().toISOString();
+  const creatorRole = getCreatorRole(type);
+
   const space = {
     id: makeId('space'),
     type,
@@ -81,41 +135,56 @@ function createSpace({ type, name, ownerId }) {
     members: [
       {
         userId: ownerId,
-        role: 'owner',
+        role: creatorRole,
         joinedAt: now,
       },
     ],
-    role: 'owner',
+    role: creatorRole,
     createdAt: now,
   };
 
   db.spaces.push(space);
   saveDb();
 
-  return space;
+  return { space, membershipRole: creatorRole };
 }
 
-function joinSpace({ code, userId }) {
+function joinSpace({ code, userId, expectedType }) {
   const normalized = code.trim().toUpperCase();
+
+  if (!validateJoinCode(normalized)) {
+    return { error: 'invalid_code_format' };
+  }
+
   const space = db.spaces.find((candidate) => candidate.joinCode === normalized);
 
   if (!space) {
-    return null;
+    return { error: 'code_not_found' };
   }
 
-  const alreadyMember = space.members.some((member) => member.userId === userId);
-
-  if (!alreadyMember) {
-    space.members.push({
-      userId,
-      role: 'member',
-      joinedAt: new Date().toISOString(),
-    });
-
-    saveDb();
+  if (space.type === 'individual') {
+    return { error: 'individual_not_joinable' };
   }
 
-  return space;
+  if (expectedType && space.type !== expectedType) {
+    return { error: 'wrong_space_type' };
+  }
+
+  const existing = space.members.find((member) => member.userId === userId);
+  if (existing) {
+    return { space, membershipRole: existing.role };
+  }
+
+  const role = getJoinerRole(space.type);
+  space.members.push({
+    userId,
+    role,
+    joinedAt: new Date().toISOString(),
+  });
+
+  saveDb();
+
+  return { space, membershipRole: role };
 }
 
 function findUserName(userId) {
@@ -132,7 +201,13 @@ function createCard(title, contentHtml) {
   `;
 }
 
-function renderIndividualDashboard(space) {
+function renderPermissions(role) {
+  const permissions = ROLE_PERMISSIONS[role] || [];
+  const items = permissions.map((item) => `<li>${item}</li>`).join('');
+  return createCard('Role permissions', `<p><strong>${role}</strong></p><ul>${items}</ul>`);
+}
+
+function renderIndividualDashboard(space, membershipRole) {
   return [
     createCard('Welcome message', `<p>Welcome back, ${currentUser?.fullName || 'Investor'}.</p>`),
     createCard('Current progress', '<p>Cycle 1 progress: <strong>20%</strong> complete.</p>'),
@@ -140,6 +215,7 @@ function renderIndividualDashboard(space) {
     createCard('Pitches', '<p class="placeholder">Pitch workspace placeholder.</p>'),
     createCard('Leaderboard', '<p class="placeholder">Leaderboard placeholder.</p>'),
     createCard('Space info', `<p>Space name: <strong>${space.name}</strong><br/>Join code: <strong>${space.joinCode}</strong></p>`),
+    renderPermissions(membershipRole),
   ].join('');
 }
 
@@ -148,37 +224,37 @@ function renderClubDashboard(space, membershipRole) {
     .map((member) => `<li>${findUserName(member.userId)} — ${member.role}</li>`)
     .join('');
 
+  const leaderControls = hasPermission(membershipRole, PERMISSIONS.CREATE_CYCLE)
+    ? '<p>Leader controls: create cycle, manage submissions, manage club settings.</p>'
+    : '<p>You are a member. Leader controls are hidden.</p>';
+
   return [
     createCard('Club name', `<p><strong>${space.name}</strong></p>`),
     createCard('Members', `<ul>${membersHtml || '<li>No members yet.</li>'}</ul>`),
     createCard('Cycle section', '<p class="placeholder">Club cycle planning placeholder.</p>'),
     createCard('Leaderboard', '<p class="placeholder">Leaderboard placeholder.</p>'),
     createCard('Join code', `<p>Share this code: <strong>${space.joinCode}</strong></p>`),
-    createCard(
-      'Admin controls',
-      membershipRole === 'owner'
-        ? '<p>Leader controls: invite members, start cycle, manage submissions.</p>'
-        : '<p>You are a member. Leader controls appear for club owners.</p>',
-    ),
+    createCard('Admin controls', leaderControls),
+    renderPermissions(membershipRole),
   ].join('');
 }
 
 function renderClassDashboard(space, membershipRole) {
   const rosterHtml = space.members
-    .map((member) => `<li>${findUserName(member.userId)} — ${member.role === 'owner' ? 'teacher' : 'student'}</li>`)
+    .map((member) => `<li>${findUserName(member.userId)} — ${member.role}</li>`)
     .join('');
+
+  const teacherControls = hasPermission(membershipRole, PERMISSIONS.CREATE_ASSIGNMENT)
+    ? '<p>Teacher controls: create assignments, review submissions, and grade work.</p>'
+    : '<p>Student view: submit work and track due dates.</p>';
 
   return [
     createCard('Class name', `<p><strong>${space.name}</strong></p>`),
     createCard('Assignments', '<p class="placeholder">Assignments section placeholder.</p>'),
     createCard('Student roster', `<ul>${rosterHtml || '<li>No students yet.</li>'}</ul>`),
     createCard('Due dates', '<ul><li>Pitch 1 — Apr 10</li><li>Reflection — Apr 17</li></ul>'),
-    createCard(
-      'Teacher controls',
-      membershipRole === 'owner'
-        ? '<p>Teacher controls: publish assignments, grade submissions, lock deadlines.</p>'
-        : '<p>Teacher controls are visible for class owners.</p>',
-    ),
+    createCard('Teacher controls', teacherControls),
+    renderPermissions(membershipRole),
   ].join('');
 }
 
@@ -194,7 +270,7 @@ function showDashboard(space, membershipRole) {
   dashboardSubtitle.textContent = `Space: ${space.name} • Role: ${membershipRole}`;
 
   if (space.type === 'individual') {
-    dashboardGrid.innerHTML = renderIndividualDashboard(space);
+    dashboardGrid.innerHTML = renderIndividualDashboard(space, membershipRole);
     return;
   }
 
@@ -253,6 +329,7 @@ modeOptions?.addEventListener('click', (event) => {
 
   if (joinCodeInput) {
     joinCodeInput.value = '';
+    joinCodeInput.setCustomValidity('');
   }
 
   const individualMode = selectedType === 'individual';
@@ -260,7 +337,7 @@ modeOptions?.addEventListener('click', (event) => {
     joinSpaceButton.disabled = individualMode;
   }
   if (createSpaceButton) {
-    createSpaceButton.textContent = individualMode ? 'Start personal space' : 'Create new space';
+    createSpaceButton.textContent = individualMode ? 'Start personal space' : `Create ${selectedType} space`;
   }
 });
 
@@ -271,13 +348,13 @@ spaceActions?.addEventListener('submit', (event) => {
     return;
   }
 
-  const space = createSpace({
+  const { space, membershipRole } = createSpace({
     type: selectedType,
     name: spaceNameInput.value.trim(),
     ownerId: currentUser.id,
   });
 
-  showDashboard(space, 'owner');
+  showDashboard(space, membershipRole);
 });
 
 joinSpaceButton?.addEventListener('click', () => {
@@ -285,17 +362,25 @@ joinSpaceButton?.addEventListener('click', () => {
     return;
   }
 
-  const space = joinSpace({
+  const result = joinSpace({
     code: joinCodeInput.value,
     userId: currentUser.id,
+    expectedType: selectedType,
   });
 
-  if (!space) {
-    joinCodeInput.setCustomValidity('No space found with that join code.');
+  if (result.error) {
+    const messages = {
+      invalid_code_format: 'Join code format should be 6-8 letters/numbers.',
+      code_not_found: 'No space found with that join code.',
+      individual_not_joinable: 'Individual spaces cannot be joined.',
+      wrong_space_type: 'That join code belongs to a different space type.',
+    };
+
+    joinCodeInput.setCustomValidity(messages[result.error] || 'Unable to join this space.');
     joinCodeInput.reportValidity();
     return;
   }
 
   joinCodeInput.setCustomValidity('');
-  showDashboard(space, 'member');
+  showDashboard(result.space, result.membershipRole);
 });
