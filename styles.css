@@ -1,7 +1,6 @@
 :root {
   --blue-700: #2d7fc7;
   --blue-600: #3b89cc;
-  --blue-100: #e3edf8;
   --navy-900: #173f69;
   --navy-800: #204d77;
   --navy-700: #335d85;
@@ -10,15 +9,13 @@
   --panel-cream: #f8f3ea;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: linear-gradient(170deg, var(--cream-200) 0%, #f2ecdf 50%, var(--cream-100) 100%);
+  font-family: "Inter", system-ui, sans-serif;
+  background: linear-gradient(170deg, var(--cream-200), var(--cream-100));
   color: var(--navy-900);
   display: grid;
   place-items: center;
@@ -26,14 +23,92 @@ body {
 }
 
 .page-shell {
-  width: min(860px, 100%);
+  width: min(920px, 100%);
   background: var(--cream-100);
   border-radius: 24px;
   box-shadow: 0 20px 60px rgba(23, 63, 105, 0.14);
   padding: clamp(1.5rem, 3vw, 2.5rem);
 }
 
-.brand-header {
+.brand-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.brand-mark { width: 92px; height: 92px; flex-shrink: 0; }
+.brand-mark svg { width: 100%; height: 100%; display: block; }
+.mark-outer { fill: var(--blue-600); }
+.mark-inner { fill: var(--blue-700); stroke: #d6e9fb; stroke-width: 3; }
+.mark-mountain, .mark-line, .mark-wave { fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+
+.eyebrow { margin: 0; font-size: 0.8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--blue-700); font-weight: 700; }
+h1 { margin: .15rem 0; font-size: clamp(2rem, 4vw, 2.8rem); color: var(--navy-900); }
+.subtitle { margin: 0; color: var(--navy-700); }
+
+.panel {
+  border: 1px solid #ded5c6;
+  border-radius: 16px;
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
+  background: var(--panel-cream);
+}
+
+h2, h3 { color: var(--navy-900); margin-top: 0; }
+.panel-text { color: var(--navy-700); margin-top: 0; }
+label { display: grid; gap: .4rem; font-size: .92rem; font-weight: 600; color: var(--navy-800); }
+input, textarea {
+  border: 1px solid #ccbfa8;
+  border-radius: 10px;
+  padding: .7rem .75rem;
+  font: inherit;
+  background: #fcfaf5;
+  color: var(--navy-900);
+  width: 100%;
+}
+
+.signup-form, .flow-block { display: grid; gap: .8rem; }
+.hidden { display: none; }
+
+button { border: 0; border-radius: 10px; padding: .75rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+.primary-btn { background: var(--blue-700); color: #fff; }
+.secondary { background: #f8f1e4; color: var(--navy-900); border: 1px solid #cdbfa8; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+
+.hub-header { display: flex; justify-content: space-between; align-items: center; }
+.status-pill { background: #dde8f6; color: var(--navy-900); padding: .3rem .6rem; border-radius: 999px; font-weight: 700; font-size: .83rem; }
+
+.dashboard-grid {
+  display: grid;
+  gap: .8rem;
+  margin-top: .8rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.dash-card { border: 1px solid #ddd2c2; border-radius: 12px; padding: .9rem; background: #fbf6ee; }
+.wide-card { grid-column: 1 / -1; }
+
+#progress-list { padding-left: 1rem; margin: .3rem 0 0; }
+.section-grid { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.section-card { border: 1px solid #cfdcee; border-radius: 10px; padding: .7rem; background: #eef4fb; }
+.section-card.complete { border-color: #86b6e4; background: #dcecff; }
+.section-card button { width: 100%; margin-top: .5rem; }
+
+.editor-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbbca4; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 35, 56, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.modal-card {
+  width: min(480px, 100%);
+  background: var(--cream-100);
+  border-radius: 14px;
+  border: 1px solid #d9ccb6;
+  padding: 1rem;
+}
+.modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+
+@media (max-width: 640px) {
+  .hub-header { flex-direction: column; align-items: flex-start; gap: .5rem; }
+}
   display: flex;
   align-items: center;
   gap: 1rem;
