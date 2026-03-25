@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Council Powered by Summitcrest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="brand-header">
+        <div class="brand-mark" aria-hidden="true">
+          <div class="mountain mountain-back"></div>
+          <div class="mountain mountain-front"></div>
+          <div class="waterline"></div>
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">Powered by Summitcrest</p>
+          <h1>Council</h1>
+          <p class="subtitle">Mock investment council experiences for modern learners.</p>
+        </div>
+      </header>
+
+      <section id="signup-screen" class="panel" aria-labelledby="signup-title">
+        <h2 id="signup-title">Create your account</h2>
+        <p class="panel-text">Start your council journey in under a minute.</p>
+        <form id="signup-form" class="signup-form">
+          <label>
+            Full name
+            <input type="text" name="fullName" required autocomplete="name" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required autocomplete="email" />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required minlength="8" autocomplete="new-password" />
+          </label>
+          <button type="submit">Create account</button>
+        </form>
+      </section>
+
+      <section id="space-screen" class="panel hidden" aria-labelledby="space-title">
+        <h2 id="space-title">Choose your path</h2>
+        <p class="panel-text">Select how you want to experience Council.</p>
+        <div class="option-grid" id="mode-options">
+          <button class="option-card" type="button" data-type="individual">Learn on your own</button>
+          <button class="option-card" type="button" data-type="club">Join a club</button>
+          <button class="option-card" type="button" data-type="class">Join a class</button>
+        </div>
+
+        <form id="space-actions" class="space-actions hidden">
+          <p id="space-mode-label" class="mode-label"></p>
+          <label>
+            Space name
+            <input id="space-name" type="text" name="spaceName" placeholder="e.g., Summitcrest Cohort A" required />
+          </label>
+
+          <div class="action-row">
+            <button type="submit" id="create-space-btn">Create space</button>
+            <span class="or-divider">or</span>
+            <label class="join-code-label">
+              Join with code
+              <input id="join-code" type="text" name="joinCode" maxlength="8" placeholder="ABC123" />
+            </label>
+            <button type="button" id="join-space-btn" class="secondary">Join space</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="dashboard-screen" class="panel hidden" aria-live="polite">
+        <h2 id="dashboard-title">Dashboard</h2>
+        <p id="dashboard-subtitle" class="panel-text"></p>
+        <div id="dashboard-grid" class="dashboard-grid"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
