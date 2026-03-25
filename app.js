@@ -93,6 +93,9 @@ const groupHubCards = document.querySelector('#group-hub-cards');
 
 const presentationSlides = document.querySelector('#presentation-slides');
 const backToHubBtn = document.querySelector('#back-to-hub-btn');
+const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
+const presentationNextBtn = document.querySelector('#presentation-next-btn');
+const presentationPosition = document.querySelector('#presentation-position');
 
 let db = loadDb();
 let currentUser = null;
@@ -102,6 +105,8 @@ let pendingSlideImages = null;
 let activeClub = null;
 let pendingClub = null;
 let currentContext = 'individual';
+let presentationSlidesHtml = [];
+let presentationIndex = 0;
 
 function loadDb() {
   const saved = localStorage.getItem(DB_KEY);
@@ -190,6 +195,20 @@ function addClubMemberRole(clubId, userId, displayName, role) {
 
 function hideAllMainScreens() {
   modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
+}
+
+
+function setModeButtonActive(active) {
+  [individualBtn, clubBtn, classBtn].forEach((btn) => {
+    if (!btn) return;
+    if (btn.id === active) {
+      btn.classList.add('primary-btn');
+      btn.classList.remove('secondary');
+    } else {
+      btn.classList.remove('primary-btn');
+      btn.classList.add('secondary');
+    }
+  });
 }
 
 function renderCycleStep() {
@@ -281,15 +300,26 @@ function renderPresentationDeck() {
   const bullets = (s1.input || '').split('\n').filter(Boolean).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
   const metrics = (s4.extras?.metrics || []).filter(Boolean).map((m) => `<li>${escapeHtml(m)}</li>`).join('');
 
-  presentationSlides.innerHTML = `
-    <article class="presentation-slide"><h3>Slide 1 — Executive Summary</h3><p class="recommendation-text">${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><ul>${bullets || `<li>${escapeHtml(s1.input || '')}</li>`}</ul>${imageHtml(s1.images)}</article>
-    <article class="presentation-slide two-col"><h3>Slide 2 — Company Overview</h3><div><p>${escapeHtml(s2.input || '')}</p></div><div><p><strong>What they do</strong></p><p><strong>Revenue model</strong></p><p><strong>Key segments</strong></p></div>${imageHtml(s2.images)}</article>
-    <article class="presentation-slide"><h3>Slide 3 — Industry Overview</h3><p>${escapeHtml(s3.input || '')}</p>${imageHtml(s3.images)}</article>
-    <article class="presentation-slide"><h3>Slide 4 — Stock Analysis</h3><p>${escapeHtml(s4.input || '')}</p>${metrics ? `<ul>${metrics}</ul>` : ''}${imageHtml(s4.images)}</article>
-    <article class="presentation-slide thesis-slide"><h3>Slide 5 — Thesis</h3><p>${escapeHtml(s5.input || '')}</p>${imageHtml(s5.images)}</article>
-    <article class="presentation-slide catalyst-split"><h3>Slide 6 — Catalysts</h3><div class="split upside"><h4>Upside</h4><p>${escapeHtml(s6.input || '')}</p></div><div class="split risks"><h4>Risks</h4><p>${escapeHtml(s6.input || '')}</p></div>${imageHtml(s6.images)}</article>
-    <article class="presentation-slide"><h3>Slide 7 — Conclusion</h3><p><strong>Recommendation:</strong> ${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><p><strong>Confidence:</strong> ${escapeHtml(s7.extras?.confidence || '5')} / 10</p><p><strong>Time horizon:</strong> ${escapeHtml(s7.extras?.horizon || 'medium')}</p><p>${escapeHtml(s7.input || '')}</p>${imageHtml(s7.images)}</article>
-  `;
+  presentationSlidesHtml = [
+    `<article class="presentation-slide full-slide"><h3>Executive Summary</h3><p class="recommendation-text">${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><ul>${bullets || `<li>${escapeHtml(s1.input || '')}</li>`}</ul>${imageHtml(s1.images)}</article>`,
+    `<article class="presentation-slide full-slide two-col"><h3>Company Overview</h3><div><p>${escapeHtml(s2.input || '')}</p></div><div><p><strong>What they do</strong></p><p><strong>Revenue model</strong></p><p><strong>Key segments</strong></p></div>${imageHtml(s2.images)}</article>`,
+    `<article class="presentation-slide full-slide"><h3>Industry Overview</h3><p>${escapeHtml(s3.input || '')}</p>${imageHtml(s3.images)}</article>`,
+    `<article class="presentation-slide full-slide"><h3>Stock Analysis</h3><p>${escapeHtml(s4.input || '')}</p>${metrics ? `<ul>${metrics}</ul>` : ''}${imageHtml(s4.images)}</article>`,
+    `<article class="presentation-slide full-slide thesis-slide"><h3>Thesis</h3><p>${escapeHtml(s5.input || '')}</p>${imageHtml(s5.images)}</article>`,
+    `<article class="presentation-slide full-slide catalyst-split"><h3>Catalysts</h3><div class="split upside"><h4>Upside</h4><p>${escapeHtml(s6.input || '')}</p></div><div class="split risks"><h4>Risks</h4><p>${escapeHtml(s6.input || '')}</p></div>${imageHtml(s6.images)}</article>`,
+    `<article class="presentation-slide full-slide"><h3>Conclusion</h3><p><strong>Recommendation:</strong> ${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><p><strong>Confidence:</strong> ${escapeHtml(s7.extras?.confidence || '5')} / 10</p><p><strong>Time horizon:</strong> ${escapeHtml(s7.extras?.horizon || 'medium')}</p><p>${escapeHtml(s7.input || '')}</p>${imageHtml(s7.images)}</article>`,
+  ];
+
+  presentationIndex = 0;
+  renderPresentationPage();
+}
+
+function renderPresentationPage() {
+  if (!presentationSlidesHtml.length) return;
+  presentationSlides.innerHTML = presentationSlidesHtml[presentationIndex];
+  presentationPosition.textContent = `Slide ${presentationIndex + 1} of ${presentationSlidesHtml.length}`;
+  presentationPrevBtn.disabled = presentationIndex === 0;
+  presentationNextBtn.disabled = presentationIndex === presentationSlidesHtml.length - 1;
 }
 
 function renderClassPlaceholder() {
@@ -342,6 +372,7 @@ signupForm?.addEventListener('submit', (event) => {
 
 individualBtn?.addEventListener('click', () => {
   if (!currentUser?.id) return;
+  setModeButtonActive('individual-btn');
   currentContext = 'individual';
   activeSession = getOrCreateSession(currentUser.id);
   currentSlideIndex = 0;
@@ -353,13 +384,14 @@ individualBtn?.addEventListener('click', () => {
 });
 
 clubBtn?.addEventListener('click', () => {
+  setModeButtonActive('club-btn');
   hideAllMainScreens();
   modeScreen.classList.remove('hidden');
   groupActions.classList.remove('hidden');
   groupTitle.textContent = 'Club setup';
 });
 
-classBtn?.addEventListener('click', renderClassPlaceholder);
+classBtn?.addEventListener('click', () => { setModeButtonActive('class-btn'); renderClassPlaceholder(); });
 
 groupActions?.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -509,3 +541,5 @@ viewPresentationBtn?.addEventListener('click', () => {
 });
 
 backToHubBtn?.addEventListener('click', () => renderPitchHub());
+presentationPrevBtn?.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
+presentationNextBtn?.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
