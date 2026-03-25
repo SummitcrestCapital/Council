@@ -1,80 +1,15 @@
-const DB_KEY = 'council-db-v5';
+const DB_KEY = 'council-db-v6';
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
 
 const HUB_SLIDES = [
-  {
-    key: 'executive_summary',
-    title: '1. Executive Summary',
-    prompt: 'What is your overall recommendation and why?',
-    helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'],
-    lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'],
-    shortcuts: ['None needed — this is YOUR synthesis.'],
-    imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.',
-    placeholder: 'Write 3–5 bullets.',
-  },
-  {
-    key: 'company_overview',
-    title: '2. Company Overview',
-    prompt: 'Explain the company and how it operates.',
-    helper: ['What does the company do?', 'How does it make money?', 'Who are its customers?', 'What makes it different?'],
-    lookFor: ['Clear business model.', 'Revenue sources.', 'Competitive advantage (moat).', 'Key segments.', 'Basic management insight (optional for MVP).'],
-    shortcuts: ['Company website → About', 'Yahoo Finance → Profile', 'Google: “how does [company] make money”'],
-    imageHint: 'Helpful visuals: business model diagram, revenue breakdown chart, product/service image.',
-    placeholder: 'Paragraph or bullet mix (4–8 sentences).',
-  },
-  {
-    key: 'industry_overview',
-    title: '3. Industry Overview',
-    prompt: 'What industry does this company operate in and what is happening in it?',
-    helper: ['How big is the industry?', 'Is it growing or shrinking?', 'What trends are shaping it?', 'Who are the competitors?'],
-    lookFor: ['Industry size or importance.', 'Growth trends.', 'Major players.', 'Tailwinds (AI, healthcare, etc.).', 'Headwinds (regulation, slowdown).'],
-    shortcuts: ['Google: “[industry] market size growth”', 'Google: “[company] competitors”', 'News on industry trends'],
-    imageHint: 'Helpful visuals: industry growth chart, competitor map, trend graphic.',
-    placeholder: 'Paragraph or bullets.',
-  },
-  {
-    key: 'stock_analysis',
-    title: '4. Stock Analysis (Metrics + Comparison)',
-    prompt: 'What do the numbers tell you about this company?',
-    helper: ['Look at key financial metrics.', 'Compare to competitors or market.', 'Identify what stands out.'],
-    lookFor: ['P/E ratio.', 'Revenue growth.', 'Profit margins.', 'Comparison vs competitors.', 'Comparison vs S&P 500 (basic).'],
-    shortcuts: ['Yahoo Finance → Key Statistics', 'Google: “[company] PE ratio”', 'Google: “[company] vs competitors”'],
-    imageHint: 'Helpful visuals: stock price chart (must-have), metrics table, earnings/revenue trend graph.',
-    placeholder: 'Short explanation + key stats.',
-    extra: 'metrics',
-  },
-  {
-    key: 'thesis',
-    title: '5. Thesis (Core Section)',
-    prompt: 'What is the unique opportunity here?',
-    helper: ['What is NOT fully understood by the market?', 'Why is this stock mispriced?', 'What makes this special?'],
-    lookFor: ['Specific, not generic.', '“Hidden value” or overlooked factor.', 'Clear reasoning.', 'Not just “good company”.'],
-    shortcuts: ['Earnings reports (summary)', 'News about company strategy', 'Analyst opinions (optional)'],
-    imageHint: 'Helpful visuals: one supporting chart, one key highlighted stat, optional mini idea diagram.',
-    placeholder: '1–2 strong paragraphs.',
-  },
-  {
-    key: 'catalysts',
-    title: '6. Catalysts (Upside + Risks + Scenarios)',
-    prompt: 'What events could drive this stock up or down?',
-    helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'],
-    lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'],
-    shortcuts: ['Google: “[company] outlook”', 'News: “[company] growth plans”', 'Google: “[company] risks”'],
-    imageHint: 'Helpful visuals: catalyst timeline, scenario chart, upside-vs-risk visual split.',
-    placeholder: 'Bullets split into Upside and Risks.',
-  },
-  {
-    key: 'conclusion',
-    title: '7. Conclusion',
-    prompt: 'What is your final investment decision?',
-    helper: ['Should someone buy this now?', 'Is this short-term or long-term?', 'How confident are you?'],
-    lookFor: ['Clear recommendation.', 'Consistent with thesis.', 'Time horizon awareness.'],
-    shortcuts: [],
-    imageHint: 'Helpful visuals: simple price target view, risk/reward diagram, or final summary box.',
-    placeholder: 'Final decision notes.',
-    extra: 'conclusion',
-  },
+  { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
+  { key: 'company_overview', title: '2. Company Overview', prompt: 'Explain the company and how it operates.', helper: ['What does the company do?', 'How does it make money?', 'Who are its customers?', 'What makes it different?'], lookFor: ['Clear business model.', 'Revenue sources.', 'Competitive advantage (moat).', 'Key segments.', 'Basic management insight (optional for MVP).'], shortcuts: ['Company website → About', 'Yahoo Finance → Profile', 'Google: “how does [company] make money”'], imageHint: 'Helpful visuals: business model diagram, revenue breakdown chart, product/service image.', placeholder: 'Paragraph or bullet mix (4–8 sentences).' },
+  { key: 'industry_overview', title: '3. Industry Overview', prompt: 'What industry does this company operate in and what is happening in it?', helper: ['How big is the industry?', 'Is it growing or shrinking?', 'What trends are shaping it?', 'Who are the competitors?'], lookFor: ['Industry size or importance.', 'Growth trends.', 'Major players.', 'Tailwinds (AI, healthcare, etc.).', 'Headwinds (regulation, slowdown).'], shortcuts: ['Google: “[industry] market size growth”', 'Google: “[company] competitors”', 'News on industry trends'], imageHint: 'Helpful visuals: industry growth chart, competitor map, trend graphic.', placeholder: 'Paragraph or bullets.' },
+  { key: 'stock_analysis', title: '4. Stock Analysis (Metrics + Comparison)', prompt: 'What do the numbers tell you about this company?', helper: ['Look at key financial metrics.', 'Compare to competitors or market.', 'Identify what stands out.'], lookFor: ['P/E ratio.', 'Revenue growth.', 'Profit margins.', 'Comparison vs competitors.', 'Comparison vs S&P 500 (basic).'], shortcuts: ['Yahoo Finance → Key Statistics', 'Google: “[company] PE ratio”', 'Google: “[company] vs competitors”'], imageHint: 'Helpful visuals: stock price chart (must-have), metrics table, earnings/revenue trend graph.', placeholder: 'Short explanation + key stats.', extra: 'metrics' },
+  { key: 'thesis', title: '5. Thesis (Core Section)', prompt: 'What is the unique opportunity here?', helper: ['What is NOT fully understood by the market?', 'Why is this stock mispriced?', 'What makes this special?'], lookFor: ['Specific, not generic.', '“Hidden value” or overlooked factor.', 'Clear reasoning.', 'Not just “good company”.'], shortcuts: ['Earnings reports (summary)', 'News about company strategy', 'Analyst opinions (optional)'], imageHint: 'Helpful visuals: one supporting chart, one key highlighted stat, optional mini idea diagram.', placeholder: '1–2 strong paragraphs.' },
+  { key: 'catalysts', title: '6. Catalysts (Upside + Risks + Scenarios)', prompt: 'What events could drive this stock up or down?', helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'], lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'], shortcuts: ['Google: “[company] outlook”', 'News: “[company] growth plans”', 'Google: “[company] risks”'], imageHint: 'Helpful visuals: catalyst timeline, scenario chart, upside-vs-risk visual split.', placeholder: 'Bullets split into Upside and Risks.' },
+  { key: 'conclusion', title: '7. Conclusion', prompt: 'What is your final investment decision?', helper: ['Should someone buy this now?', 'Is this short-term or long-term?', 'How confident are you?'], lookFor: ['Clear recommendation.', 'Consistent with thesis.', 'Time horizon awareness.'], shortcuts: [], imageHint: 'Helpful visuals: simple price target view, risk/reward diagram, or final summary box.', placeholder: 'Final decision notes.', extra: 'conclusion' },
 ];
 
 const signupScreen = document.querySelector('#signup-screen');
@@ -83,6 +18,8 @@ const cycleScreen = document.querySelector('#cycle-screen');
 const pitchHub = document.querySelector('#pitch-hub');
 const groupHub = document.querySelector('#group-hub');
 const presentationView = document.querySelector('#presentation-view');
+const clubRoleScreen = document.querySelector('#club-role-screen');
+const clubDashboard = document.querySelector('#club-dashboard');
 
 const signupForm = document.querySelector('#signup-form');
 const individualBtn = document.querySelector('#individual-btn');
@@ -91,16 +28,31 @@ const classBtn = document.querySelector('#class-btn');
 const groupActions = document.querySelector('#group-actions');
 const groupTitle = document.querySelector('#group-title');
 const groupSpaceName = document.querySelector('#group-space-name');
+const groupDescription = document.querySelector('#group-description');
 const groupJoinCode = document.querySelector('#group-join-code');
 const createGroupBtn = document.querySelector('#create-group-btn');
 const joinGroupBtn = document.querySelector('#join-group-btn');
+
+const pickPmBtn = document.querySelector('#pick-pm-btn');
+const pickAnalystBtn = document.querySelector('#pick-analyst-btn');
+
+const clubName = document.querySelector('#club-name');
+const clubRoleLine = document.querySelector('#club-role-line');
+const clubMembers = document.querySelector('#club-members');
+const clubCycle = document.querySelector('#club-cycle');
+const clubPitches = document.querySelector('#club-pitches');
+const executiveControls = document.querySelector('#executive-controls');
+const clubGroupName = document.querySelector('#club-group-name');
+const clubGroupSector = document.querySelector('#club-group-sector');
+const clubGroupMembers = document.querySelector('#club-group-members');
+const createClubGroupBtn = document.querySelector('#create-club-group-btn');
+const clubGroupsList = document.querySelector('#club-groups-list');
 
 const cycleInfo = document.querySelector('#cycle-info');
 const joinCycleBtn = document.querySelector('#join-cycle-btn');
 const tickerStep = document.querySelector('#ticker-step');
 const tickerInput = document.querySelector('#ticker-input');
 const lockTickerBtn = document.querySelector('#lock-ticker-btn');
-
 const lockModal = document.querySelector('#lock-modal');
 const confirmLockBtn = document.querySelector('#confirm-lock-btn');
 const cancelLockBtn = document.querySelector('#cancel-lock-btn');
@@ -145,9 +97,11 @@ const backToHubBtn = document.querySelector('#back-to-hub-btn');
 let db = loadDb();
 let currentUser = null;
 let activeSession = null;
-let activeGroupType = null;
 let currentSlideIndex = 0;
 let pendingSlideImages = null;
+let activeClub = null;
+let pendingClub = null;
+let currentContext = 'individual';
 
 function loadDb() {
   const saved = localStorage.getItem(DB_KEY);
@@ -164,77 +118,78 @@ function loadDb() {
   }
 }
 
-function saveDb() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
-function makeId(prefix) { return `${prefix}_${Math.random().toString(36).slice(2, 10)}`; }
-function generateJoinCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
-function currentCycleName() { return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }); }
-function cycleDeadline() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); }
-function daysUntilDeadline() { return Math.max(0, Math.ceil((cycleDeadline().getTime() - Date.now()) / 86400000)); }
+const saveDb = () => localStorage.setItem(DB_KEY, JSON.stringify(db));
+const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+const generateJoinCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const currentCycleName = () => new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+const cycleDeadline = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); };
+const daysUntilDeadline = () => Math.max(0, Math.ceil((cycleDeadline().getTime() - Date.now()) / 86400000));
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
 function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
   db.users.push(user); saveDb(); return user;
 }
 
-function emptySlideResponses() {
-  return Object.fromEntries(HUB_SLIDES.map((slide) => [slide.key, { input: '', extras: {}, images: [] }]));
-}
+function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
 
 function getOrCreateSession(userId) {
   const cycleName = currentCycleName();
-  let session = db.sessions.find((item) => item.userId === userId && item.cycleName === cycleName);
+  let session = db.sessions.find((item) => item.userId === userId && item.cycleName === cycleName && !item.groupId);
+  if (!session) {
+    session = { id: makeId('session'), userId, cycleName, sector: SECTORS[Math.floor(Math.random() * SECTORS.length)], joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false, slideResponses: emptySlideResponses(), submittedAt: null, createdAt: new Date().toISOString() };
+    db.sessions.push(session); saveDb();
+  }
+  return session;
+}
+
+function getOrCreateClubGroupSession({ userId, clubId, groupId, role, sector, ticker }) {
+  const cycleName = currentCycleName();
+  let session = db.sessions.find((item) => item.userId === userId && item.clubId === clubId && item.groupId === groupId && item.cycleName === cycleName);
   if (!session) {
     session = {
-      id: makeId('session'), userId, cycleName,
-      sector: SECTORS[Math.floor(Math.random() * SECTORS.length)],
-      joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false,
-      slideResponses: emptySlideResponses(),
+      id: makeId('session'), userId, clubId, groupId, role,
+      cycleName, sector, joinedCycle: true, joinedAt: new Date().toISOString(),
+      ticker: ticker || '', tickerLocked: Boolean(ticker), slideResponses: emptySlideResponses(),
       submittedAt: null, createdAt: new Date().toISOString(),
     };
     db.sessions.push(session); saveDb();
   }
   if (!session.slideResponses) session.slideResponses = emptySlideResponses();
-  HUB_SLIDES.forEach((slide) => {
-    if (!session.slideResponses[slide.key]) session.slideResponses[slide.key] = { input: '', extras: {}, images: [] };
-    if (!Array.isArray(session.slideResponses[slide.key].images)) session.slideResponses[slide.key].images = [];
-  });
-  saveDb();
   return session;
 }
 
-function createGroupSpace(type, name, ownerId) {
-  const role = type === 'club' ? 'leader' : 'teacher';
-  const space = { id: makeId('space'), type, name, joinCode: generateJoinCode(), ownerId, members: [{ userId: ownerId, role }], createdAt: new Date().toISOString() };
-  db.spaces.push(space); saveDb(); return { space, role };
+function createClub(name, description, ownerId) {
+  const code = generateJoinCode();
+  const club = { id: makeId('space'), type: 'club', name, description, joinCode: code, ownerId, currentCycle: currentCycleName(), members: [{ userId: ownerId, displayName: currentUser.fullName, role: 'executive' }], groups: [], pitches: [], createdAt: new Date().toISOString() };
+  db.spaces.push(club); saveDb(); return club;
 }
 
-function joinGroupSpace(type, code, userId) {
+function joinClubByCode(code, userId, displayName) {
   const normalized = code.trim().toUpperCase();
-  if (!/^[A-Z0-9]{6,8}$/.test(normalized)) return { error: 'invalid' };
-  const space = db.spaces.find((candidate) => candidate.joinCode === normalized);
-  if (!space) return { error: 'not_found' };
-  if (space.type !== type) return { error: 'wrong_type' };
-  const existing = space.members.find((member) => member.userId === userId);
-  if (existing) return { space, role: existing.role };
-  const role = type === 'club' ? 'member' : 'student';
-  space.members.push({ userId, role }); saveDb(); return { space, role };
+  let club = db.spaces.find((space) => space.type === 'club' && space.joinCode === normalized);
+  if (!club) {
+    club = { id: makeId('space'), type: 'club', name: `Test Club ${normalized}`, description: 'Auto-created test club', joinCode: normalized || generateJoinCode(), ownerId: userId, currentCycle: currentCycleName(), members: [], groups: [], pitches: [], createdAt: new Date().toISOString() };
+    db.spaces.push(club);
+  }
+  pendingClub = { clubId: club.id, userId, displayName };
+  saveDb();
+  return club;
+}
+
+function addClubMemberRole(clubId, userId, displayName, role) {
+  const club = db.spaces.find((space) => space.id === clubId && space.type === 'club');
+  if (!club) return null;
+  const existing = club.members.find((m) => m.userId === userId);
+  if (existing) existing.role = role;
+  else club.members.push({ userId, displayName, role });
+  saveDb();
+  return club;
 }
 
 function hideAllMainScreens() {
-  modeScreen.classList.add('hidden');
-  cycleScreen.classList.add('hidden');
-  pitchHub.classList.add('hidden');
-  groupHub.classList.add('hidden');
-  presentationView.classList.add('hidden');
+  modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
 function renderCycleStep() {
@@ -254,39 +209,19 @@ function statusForSession(session) {
   return completed > 0 ? 'In progress' : 'Not started';
 }
 
-function renderImagePreview(images) {
-  slideImagePreview.innerHTML = images.map((src) => `<img src="${src}" alt="Uploaded visual" class="preview-image" />`).join('');
-}
-
-function readFilesAsDataUrls(files) {
-  return Promise.all(
-    files.map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error('Unable to read image.'));
-          reader.readAsDataURL(file);
-        }),
-    ),
-  );
-}
+function renderImagePreview(images) { slideImagePreview.innerHTML = images.map((src) => `<img src="${src}" alt="Uploaded visual" class="preview-image" />`).join(''); }
+function readFilesAsDataUrls(files) { return Promise.all(files.map((f) => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error('Unable to read image.')); r.readAsDataURL(f); }))); }
 
 function renderSlide() {
   const slide = HUB_SLIDES[currentSlideIndex];
   const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
-
   slidePosition.textContent = `Section ${currentSlideIndex + 1} of ${HUB_SLIDES.length}`;
   slideTitle.textContent = slide.title;
   slidePrompt.textContent = `Prompt: ${slide.prompt}`;
   slideHelper.innerHTML = slide.helper.map((item) => `<li>${item}</li>`).join('');
   slideLookfor.innerHTML = slide.lookFor.map((item) => `<li>${item}</li>`).join('');
   slideImageHint.textContent = `Visual hint: ${slide.imageHint}`;
-
-  slideShortcutsList.innerHTML = slide.shortcuts.length
-    ? slide.shortcuts.map((item) => `<li>${item}</li>`).join('')
-    : '<li>No shortcuts for this section.</li>';
-
+  slideShortcutsList.innerHTML = slide.shortcuts.length ? slide.shortcuts.map((item) => `<li>${item}</li>`).join('') : '<li>No shortcuts for this section.</li>';
   slideInput.placeholder = slide.placeholder;
   slideInput.value = response.input || '';
   slideImageUpload.value = '';
@@ -295,49 +230,18 @@ function renderSlide() {
 
   slideExtraFields.classList.add('hidden');
   slideExtraFields.innerHTML = '';
-
   if (slide.extra === 'metrics') {
     const metrics = response.extras.metrics || ['', '', ''];
     slideExtraFields.classList.remove('hidden');
-    slideExtraFields.innerHTML = `
-      <h4>Optional: Add 2–3 metrics</h4>
-      <div class="mode-options">
-        <input data-metric-index="0" placeholder="Metric 1 (e.g., P/E: 24.3)" value="${escapeHtml(metrics[0] || '')}" />
-        <input data-metric-index="1" placeholder="Metric 2" value="${escapeHtml(metrics[1] || '')}" />
-        <input data-metric-index="2" placeholder="Metric 3" value="${escapeHtml(metrics[2] || '')}" />
-      </div>
-    `;
+    slideExtraFields.innerHTML = `<h4>Optional: Add 2–3 metrics</h4><div class="mode-options"><input data-metric-index="0" placeholder="Metric 1" value="${escapeHtml(metrics[0] || '')}" /><input data-metric-index="1" placeholder="Metric 2" value="${escapeHtml(metrics[1] || '')}" /><input data-metric-index="2" placeholder="Metric 3" value="${escapeHtml(metrics[2] || '')}" /></div>`;
   }
-
   if (slide.extra === 'conclusion') {
     const rec = response.extras.recommendation || 'Watch';
     const horizon = response.extras.horizon || 'medium';
     const confidence = response.extras.confidence || '5';
     slideExtraFields.classList.remove('hidden');
-    slideExtraFields.innerHTML = `
-      <h4>Decision details</h4>
-      <div class="mode-options">
-        <label>Recommendation
-          <select id="conclusion-rec">
-            <option ${rec === 'Buy' ? 'selected' : ''}>Buy</option>
-            <option ${rec === 'Watch' ? 'selected' : ''}>Watch</option>
-            <option ${rec === 'Avoid' ? 'selected' : ''}>Avoid</option>
-          </select>
-        </label>
-        <label>Time horizon
-          <select id="conclusion-horizon">
-            <option value="short" ${horizon === 'short' ? 'selected' : ''}>Short</option>
-            <option value="medium" ${horizon === 'medium' ? 'selected' : ''}>Medium</option>
-            <option value="long" ${horizon === 'long' ? 'selected' : ''}>Long</option>
-          </select>
-        </label>
-        <label>Confidence (1–10)
-          <input id="conclusion-confidence" type="number" min="1" max="10" value="${escapeHtml(confidence)}" />
-        </label>
-      </div>
-    `;
+    slideExtraFields.innerHTML = `<h4>Decision details</h4><div class="mode-options"><label>Recommendation<select id="conclusion-rec"><option ${rec === 'Buy' ? 'selected' : ''}>Buy</option><option ${rec === 'Watch' ? 'selected' : ''}>Watch</option><option ${rec === 'Avoid' ? 'selected' : ''}>Avoid</option></select></label><label>Time horizon<select id="conclusion-horizon"><option value="short" ${horizon === 'short' ? 'selected' : ''}>Short</option><option value="medium" ${horizon === 'medium' ? 'selected' : ''}>Medium</option><option value="long" ${horizon === 'long' ? 'selected' : ''}>Long</option></select></label><label>Confidence (1–10)<input id="conclusion-confidence" type="number" min="1" max="10" value="${escapeHtml(confidence)}" /></label></div>`;
   }
-
   prevSlideBtn.disabled = currentSlideIndex === 0;
   nextSlideBtn.disabled = currentSlideIndex === HUB_SLIDES.length - 1;
 }
@@ -346,19 +250,14 @@ function renderProgress() {
   const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
   const percent = Math.round((completed / HUB_SLIDES.length) * 100);
   progressPercent.textContent = `${percent}% complete`;
-  progressList.innerHTML = HUB_SLIDES.map((slide) => {
-    const done = Boolean(activeSession.slideResponses[slide.key]?.input?.trim());
-    return `<li>${done ? '✅' : '⬜'} ${slide.title}</li>`;
-  }).join('');
+  progressList.innerHTML = HUB_SLIDES.map((slide) => `<li>${activeSession.slideResponses[slide.key]?.input?.trim() ? '✅' : '⬜'} ${slide.title}</li>`).join('');
 
   const canSubmit = completed >= MIN_REQUIRED_SECTIONS && !activeSession.submittedAt;
-  submitPitchBtn.disabled = !canSubmit;
+  const isAnalystContext = currentContext === 'club_group' && activeSession.role === 'analyst';
+  submitPitchBtn.disabled = !canSubmit || isAnalystContext;
   viewPresentationBtn.classList.toggle('hidden', !activeSession.submittedAt);
-  submitNote.textContent = activeSession.submittedAt
-    ? 'Pitch submitted. Everything is now locked. You can now view your completed presentation.'
-    : canSubmit
-      ? 'Ready to submit your pitch.'
-      : `Complete all ${MIN_REQUIRED_SECTIONS} sections to submit.`;
+  if (isAnalystContext) submitNote.textContent = 'Analysts can contribute, but only Portfolio Managers can submit.';
+  else submitNote.textContent = activeSession.submittedAt ? 'Pitch submitted. Everything is now locked. You can now view your completed presentation.' : canSubmit ? 'Ready to submit your pitch.' : `Complete all ${MIN_REQUIRED_SECTIONS} sections to submit.`;
 }
 
 function renderPitchHub() {
@@ -369,7 +268,7 @@ function renderPitchHub() {
   hubSector.textContent = `Sector: ${activeSession.sector}`;
   hubCountdown.textContent = `${daysUntilDeadline()} day(s) left in cycle`;
   hubTicker.textContent = `Ticker: ${activeSession.ticker}`;
-  hubCompany.textContent = `Company: ${activeSession.ticker} (name lookup coming soon)`;
+  hubCompany.textContent = `Company: ${activeSession.ticker || 'Not selected'} (name lookup coming soon)`;
   deadlineText.textContent = `${daysUntilDeadline()} days left to submit.`;
   renderProgress();
   renderSlide();
@@ -377,115 +276,73 @@ function renderPitchHub() {
 
 function renderPresentationDeck() {
   const responses = activeSession.slideResponses;
-
-  const imageHtml = (images) =>
-    images?.length
-      ? `<div class="presentation-images">${images.map((src) => `<img src="${src}" alt="Slide visual"/>`).join('')}</div>`
-      : '';
-
-  const slide1 = responses.executive_summary || {};
-  const bullets = (slide1.input || '').split('\n').filter(Boolean).map((line) => `<li>${escapeHtml(line)}</li>`).join('');
-
-  const slide2 = responses.company_overview || {};
-  const slide3 = responses.industry_overview || {};
-  const slide4 = responses.stock_analysis || {};
-  const slide5 = responses.thesis || {};
-  const slide6 = responses.catalysts || {};
-  const slide7 = responses.conclusion || {};
-
-  const metrics = (slide4.extras?.metrics || []).filter(Boolean).map((m) => `<li>${escapeHtml(m)}</li>`).join('');
+  const imageHtml = (images) => images?.length ? `<div class="presentation-images">${images.map((src) => `<img src="${src}" alt="Slide visual"/>`).join('')}</div>` : '';
+  const s1 = responses.executive_summary || {}, s2 = responses.company_overview || {}, s3 = responses.industry_overview || {}, s4 = responses.stock_analysis || {}, s5 = responses.thesis || {}, s6 = responses.catalysts || {}, s7 = responses.conclusion || {};
+  const bullets = (s1.input || '').split('\n').filter(Boolean).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+  const metrics = (s4.extras?.metrics || []).filter(Boolean).map((m) => `<li>${escapeHtml(m)}</li>`).join('');
 
   presentationSlides.innerHTML = `
-    <article class="presentation-slide">
-      <h3>Slide 1 — Executive Summary</h3>
-      <p class="recommendation-text">${escapeHtml(slide7.extras?.recommendation || 'Watch')}</p>
-      <ul>${bullets || `<li>${escapeHtml(slide1.input || '')}</li>`}</ul>
-      ${imageHtml(slide1.images)}
-    </article>
-
-    <article class="presentation-slide two-col">
-      <h3>Slide 2 — Company Overview</h3>
-      <div>
-        <p>${escapeHtml(slide2.input || '')}</p>
-      </div>
-      <div>
-        <p><strong>What they do</strong></p>
-        <p><strong>Revenue model</strong></p>
-        <p><strong>Key segments</strong></p>
-      </div>
-      ${imageHtml(slide2.images)}
-    </article>
-
-    <article class="presentation-slide">
-      <h3>Slide 3 — Industry Overview</h3>
-      <p>${escapeHtml(slide3.input || '')}</p>
-      ${imageHtml(slide3.images)}
-    </article>
-
-    <article class="presentation-slide">
-      <h3>Slide 4 — Stock Analysis</h3>
-      <p>${escapeHtml(slide4.input || '')}</p>
-      ${metrics ? `<ul>${metrics}</ul>` : ''}
-      ${imageHtml(slide4.images)}
-    </article>
-
-    <article class="presentation-slide thesis-slide">
-      <h3>Slide 5 — Thesis</h3>
-      <p>${escapeHtml(slide5.input || '')}</p>
-      ${imageHtml(slide5.images)}
-    </article>
-
-    <article class="presentation-slide catalyst-split">
-      <h3>Slide 6 — Catalysts</h3>
-      <div class="split upside"><h4>Upside</h4><p>${escapeHtml(slide6.input || '')}</p></div>
-      <div class="split risks"><h4>Risks</h4><p>${escapeHtml(slide6.input || '')}</p></div>
-      ${imageHtml(slide6.images)}
-    </article>
-
-    <article class="presentation-slide">
-      <h3>Slide 7 — Conclusion</h3>
-      <p><strong>Recommendation:</strong> ${escapeHtml(slide7.extras?.recommendation || 'Watch')}</p>
-      <p><strong>Confidence:</strong> ${escapeHtml(slide7.extras?.confidence || '5')} / 10</p>
-      <p><strong>Time horizon:</strong> ${escapeHtml(slide7.extras?.horizon || 'medium')}</p>
-      <p>${escapeHtml(slide7.input || '')}</p>
-      ${imageHtml(slide7.images)}
-    </article>
+    <article class="presentation-slide"><h3>Slide 1 — Executive Summary</h3><p class="recommendation-text">${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><ul>${bullets || `<li>${escapeHtml(s1.input || '')}</li>`}</ul>${imageHtml(s1.images)}</article>
+    <article class="presentation-slide two-col"><h3>Slide 2 — Company Overview</h3><div><p>${escapeHtml(s2.input || '')}</p></div><div><p><strong>What they do</strong></p><p><strong>Revenue model</strong></p><p><strong>Key segments</strong></p></div>${imageHtml(s2.images)}</article>
+    <article class="presentation-slide"><h3>Slide 3 — Industry Overview</h3><p>${escapeHtml(s3.input || '')}</p>${imageHtml(s3.images)}</article>
+    <article class="presentation-slide"><h3>Slide 4 — Stock Analysis</h3><p>${escapeHtml(s4.input || '')}</p>${metrics ? `<ul>${metrics}</ul>` : ''}${imageHtml(s4.images)}</article>
+    <article class="presentation-slide thesis-slide"><h3>Slide 5 — Thesis</h3><p>${escapeHtml(s5.input || '')}</p>${imageHtml(s5.images)}</article>
+    <article class="presentation-slide catalyst-split"><h3>Slide 6 — Catalysts</h3><div class="split upside"><h4>Upside</h4><p>${escapeHtml(s6.input || '')}</p></div><div class="split risks"><h4>Risks</h4><p>${escapeHtml(s6.input || '')}</p></div>${imageHtml(s6.images)}</article>
+    <article class="presentation-slide"><h3>Slide 7 — Conclusion</h3><p><strong>Recommendation:</strong> ${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><p><strong>Confidence:</strong> ${escapeHtml(s7.extras?.confidence || '5')} / 10</p><p><strong>Time horizon:</strong> ${escapeHtml(s7.extras?.horizon || 'medium')}</p><p>${escapeHtml(s7.input || '')}</p>${imageHtml(s7.images)}</article>
   `;
 }
 
-function renderGroupHub(space, role) {
+function renderClassPlaceholder() {
   hideAllMainScreens();
   groupHub.classList.remove('hidden');
-  groupHubTitle.textContent = `${space.type === 'club' ? 'Club' : 'Class'} dashboard`;
-  groupHubSubtitle.textContent = `${space.name} • Role: ${role} • Join code: ${space.joinCode}`;
-  const memberList = space.members.map((member) => `<li>${member.role}</li>`).join('');
-
-  groupHubCards.innerHTML = space.type === 'club'
-    ? `<article class="dash-card"><h3>Club name</h3><p>${space.name}</p></article>
-      <article class="dash-card"><h3>Members</h3><ul>${memberList}</ul></article>
-      <article class="dash-card"><h3>Cycle section</h3><p>Club cycle placeholder</p></article>
-      <article class="dash-card"><h3>Leaderboard</h3><p>Leaderboard placeholder</p></article>
-      <article class="dash-card"><h3>Admin controls</h3><p>${role === 'leader' ? 'Manage club settings enabled.' : 'View-only member.'}</p></article>`
-    : `<article class="dash-card"><h3>Class name</h3><p>${space.name}</p></article>
-      <article class="dash-card"><h3>Assignments</h3><p>Assignments placeholder</p></article>
-      <article class="dash-card"><h3>Student roster</h3><ul>${memberList}</ul></article>
-      <article class="dash-card"><h3>Due dates</h3><p>Due dates placeholder</p></article>
-      <article class="dash-card"><h3>Teacher controls</h3><p>${role === 'teacher' ? 'Grading enabled.' : 'Student view only.'}</p></article>`;
+  groupHubTitle.textContent = 'Class mode';
+  groupHubSubtitle.textContent = 'Class mode remains unchanged in this iteration.';
+  groupHubCards.innerHTML = '<article class="dash-card"><h3>Coming soon</h3><p>Class workflows are unchanged for now.</p></article>';
 }
 
+function renderClubDashboard() {
+  if (!activeClub) return;
+  hideAllMainScreens();
+  clubDashboard.classList.remove('hidden');
+
+  const currentMember = activeClub.members.find((m) => m.userId === currentUser.id);
+  clubName.textContent = activeClub.name;
+  clubRoleLine.textContent = `Your role: ${currentMember?.role || 'member'}`;
+  clubCycle.textContent = activeClub.currentCycle;
+  clubMembers.innerHTML = activeClub.members.map((m) => `<li>${escapeHtml(m.displayName || m.userId)} — ${m.role}</li>`).join('');
+
+  const submitted = (activeClub.pitches || []).map((pitch) => `<li>${escapeHtml(pitch.groupName)} • ${escapeHtml(pitch.ticker)} • by ${escapeHtml(pitch.userName)}</li>`).join('');
+  clubPitches.innerHTML = submitted || '<li>No submitted pitches yet.</li>';
+
+  executiveControls.classList.toggle('hidden', currentMember?.role !== 'executive');
+
+  clubGroupsList.innerHTML = (activeClub.groups || []).map((group) => {
+    const isPm = currentMember?.role === 'portfolio_manager';
+    const canEnter = currentMember?.role === 'analyst' || currentMember?.role === 'portfolio_manager';
+    return `
+      <div class="section-card">
+        <strong>${escapeHtml(group.name)}</strong>
+        <p>Sector: ${escapeHtml(group.sector)}</p>
+        <p>Members: ${escapeHtml((group.memberNames || []).join(', ') || 'None')}</p>
+        ${isPm ? `<label>Stock ticker<input data-group-stock="${group.id}" value="${escapeHtml(group.stockTicker || '')}" placeholder="AAPL" /></label><button data-save-stock="${group.id}" class="secondary" type="button">Save stock</button>` : ''}
+        ${canEnter ? `<button data-open-group="${group.id}" class="primary-btn" type="button">Open Group Hub</button>` : ''}
+      </div>
+    `;
+  }).join('') || '<p>No groups yet.</p>';
+}
+
+// Events
 signupForm?.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = new FormData(signupForm);
-  currentUser = createUser({
-    fullName: String(formData.get('fullName') || '').trim(),
-    email: String(formData.get('email') || '').trim(),
-  });
+  currentUser = createUser({ fullName: String(formData.get('fullName') || '').trim(), email: String(formData.get('email') || '').trim() });
   signupScreen.classList.add('hidden');
   modeScreen.classList.remove('hidden');
 });
 
 individualBtn?.addEventListener('click', () => {
   if (!currentUser?.id) return;
+  currentContext = 'individual';
   activeSession = getOrCreateSession(currentUser.id);
   currentSlideIndex = 0;
   hideAllMainScreens();
@@ -495,15 +352,73 @@ individualBtn?.addEventListener('click', () => {
   if (activeSession.tickerLocked) renderPitchHub();
 });
 
-function setGroupMode(type) {
-  activeGroupType = type;
+clubBtn?.addEventListener('click', () => {
+  hideAllMainScreens();
+  modeScreen.classList.remove('hidden');
   groupActions.classList.remove('hidden');
-  groupTitle.textContent = type === 'club' ? 'Club space' : 'Class space';
-  createGroupBtn.textContent = type === 'club' ? 'Create club' : 'Create class';
-}
+  groupTitle.textContent = 'Club setup';
+});
 
-clubBtn?.addEventListener('click', () => setGroupMode('club'));
-classBtn?.addEventListener('click', () => setGroupMode('class'));
+classBtn?.addEventListener('click', renderClassPlaceholder);
+
+groupActions?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!currentUser?.id || !groupSpaceName.value.trim()) return;
+  activeClub = createClub(groupSpaceName.value.trim(), groupDescription.value.trim(), currentUser.id);
+  pendingClub = null;
+  renderClubDashboard();
+});
+
+joinGroupBtn?.addEventListener('click', () => {
+  if (!currentUser?.id || !groupJoinCode.value.trim()) return;
+  activeClub = joinClubByCode(groupJoinCode.value, currentUser.id, currentUser.fullName);
+  hideAllMainScreens();
+  clubRoleScreen.classList.remove('hidden');
+});
+
+pickPmBtn?.addEventListener('click', () => {
+  if (!activeClub || !currentUser?.id) return;
+  activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, 'portfolio_manager');
+  renderClubDashboard();
+});
+
+pickAnalystBtn?.addEventListener('click', () => {
+  if (!activeClub || !currentUser?.id) return;
+  activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, 'analyst');
+  renderClubDashboard();
+});
+
+createClubGroupBtn?.addEventListener('click', () => {
+  if (!activeClub || !clubGroupName.value.trim()) return;
+  const memberNames = clubGroupMembers.value.split(',').map((x) => x.trim()).filter(Boolean);
+  activeClub.groups.push({ id: makeId('group'), name: clubGroupName.value.trim(), sector: clubGroupSector.value, memberNames, stockTicker: '', submittedBy: null });
+  saveDb();
+  renderClubDashboard();
+});
+
+clubGroupsList?.addEventListener('click', (event) => {
+  const saveStockBtn = event.target.closest('button[data-save-stock]');
+  if (saveStockBtn) {
+    const group = activeClub.groups.find((g) => g.id === saveStockBtn.dataset.saveStock);
+    const input = clubGroupsList.querySelector(`input[data-group-stock="${group.id}"]`);
+    group.stockTicker = input?.value.trim().toUpperCase() || '';
+    saveDb();
+    renderClubDashboard();
+    return;
+  }
+
+  const openGroupBtn = event.target.closest('button[data-open-group]');
+  if (openGroupBtn) {
+    const group = activeClub.groups.find((g) => g.id === openGroupBtn.dataset.openGroup);
+    if (!group) return;
+    const member = activeClub.members.find((m) => m.userId === currentUser.id);
+    currentContext = 'club_group';
+    activeSession = getOrCreateClubGroupSession({ userId: currentUser.id, clubId: activeClub.id, groupId: group.id, role: member?.role || 'analyst', sector: group.sector, ticker: group.stockTicker });
+    activeSession.ticker = group.stockTicker;
+    activeSession.tickerLocked = Boolean(group.stockTicker);
+    renderPitchHub();
+  }
+});
 
 joinCycleBtn?.addEventListener('click', () => {
   if (!activeSession || activeSession.joinedCycle) return;
@@ -516,11 +431,7 @@ joinCycleBtn?.addEventListener('click', () => {
 lockTickerBtn?.addEventListener('click', () => {
   if (!activeSession?.joinedCycle || activeSession.tickerLocked) return;
   const ticker = tickerInput.value.trim().toUpperCase();
-  if (!/^[A-Z]{1,8}$/.test(ticker)) {
-    tickerInput.setCustomValidity('Enter a valid stock ticker (letters only, max 8).');
-    tickerInput.reportValidity();
-    return;
-  }
+  if (!/^[A-Z]{1,8}$/.test(ticker)) { tickerInput.setCustomValidity('Enter a valid stock ticker (letters only, max 8).'); tickerInput.reportValidity(); return; }
   tickerInput.setCustomValidity('');
   activeSession.ticker = ticker;
   lockModal.classList.remove('hidden');
@@ -535,40 +446,18 @@ confirmLockBtn?.addEventListener('click', () => {
 });
 cancelLockBtn?.addEventListener('click', () => lockModal.classList.add('hidden'));
 
-prevSlideBtn?.addEventListener('click', () => {
-  if (currentSlideIndex > 0) {
-    currentSlideIndex -= 1;
-    renderSlide();
-  }
-});
-
-nextSlideBtn?.addEventListener('click', () => {
-  if (currentSlideIndex < HUB_SLIDES.length - 1) {
-    currentSlideIndex += 1;
-    renderSlide();
-  }
-});
+prevSlideBtn?.addEventListener('click', () => { if (currentSlideIndex > 0) { currentSlideIndex -= 1; renderSlide(); } });
+nextSlideBtn?.addEventListener('click', () => { if (currentSlideIndex < HUB_SLIDES.length - 1) { currentSlideIndex += 1; renderSlide(); } });
 
 toggleShortcutsBtn?.addEventListener('click', () => {
   slideShortcuts.classList.toggle('hidden');
-  toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden')
-    ? 'Show research shortcuts'
-    : 'Hide research shortcuts';
+  toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden') ? 'Show research shortcuts' : 'Hide research shortcuts';
 });
 
 slideImageUpload?.addEventListener('change', async () => {
-  if (!slideImageUpload.files?.length) {
-    pendingSlideImages = null;
-    return;
-  }
-
+  if (!slideImageUpload.files?.length) { pendingSlideImages = null; return; }
   const files = [...slideImageUpload.files];
-  if (files.length > 3) {
-    slideImageUpload.setCustomValidity('Please upload between 1 and 3 images.');
-    slideImageUpload.reportValidity();
-    return;
-  }
-
+  if (files.length > 3) { slideImageUpload.setCustomValidity('Please upload between 1 and 3 images.'); slideImageUpload.reportValidity(); return; }
   slideImageUpload.setCustomValidity('');
   pendingSlideImages = await readFilesAsDataUrls(files);
   renderImagePreview(pendingSlideImages);
@@ -578,17 +467,10 @@ saveSlideBtn?.addEventListener('click', () => {
   if (!activeSession || activeSession.submittedAt) return;
   const slide = HUB_SLIDES[currentSlideIndex];
   const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
-
   response.input = slideInput.value.trim();
-  if (pendingSlideImages?.length) {
-    response.images = pendingSlideImages.slice(0, 3);
-  }
+  if (pendingSlideImages?.length) response.images = pendingSlideImages.slice(0, 3);
 
-  if (slide.extra === 'metrics') {
-    const metricInputs = [...slideExtraFields.querySelectorAll('[data-metric-index]')].map((input) => input.value.trim());
-    response.extras.metrics = metricInputs;
-  }
-
+  if (slide.extra === 'metrics') response.extras.metrics = [...slideExtraFields.querySelectorAll('[data-metric-index]')].map((input) => input.value.trim());
   if (slide.extra === 'conclusion') {
     response.extras.recommendation = slideExtraFields.querySelector('#conclusion-rec')?.value || 'Watch';
     response.extras.horizon = slideExtraFields.querySelector('#conclusion-horizon')?.value || 'medium';
@@ -606,6 +488,15 @@ submitPitchBtn?.addEventListener('click', () => {
   const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
   if (completed < MIN_REQUIRED_SECTIONS) return;
   activeSession.submittedAt = new Date().toISOString();
+
+  if (currentContext === 'club_group' && activeSession.role === 'portfolio_manager') {
+    const group = activeClub.groups.find((g) => g.id === activeSession.groupId);
+    if (group) {
+      activeClub.pitches.push({ groupId: group.id, groupName: group.name, ticker: activeSession.ticker, userName: currentUser.fullName, submittedAt: activeSession.submittedAt });
+      saveDb();
+    }
+  }
+
   saveDb();
   renderPitchHub();
 });
@@ -617,26 +508,4 @@ viewPresentationBtn?.addEventListener('click', () => {
   renderPresentationDeck();
 });
 
-backToHubBtn?.addEventListener('click', () => {
-  renderPitchHub();
-});
-
-groupActions?.addEventListener('submit', (event) => {
-  event.preventDefault();
-  if (!activeGroupType || !currentUser?.id || !groupSpaceName.value.trim()) return;
-  const { space, role } = createGroupSpace(activeGroupType, groupSpaceName.value.trim(), currentUser.id);
-  renderGroupHub(space, role);
-});
-
-joinGroupBtn?.addEventListener('click', () => {
-  if (!activeGroupType || !currentUser?.id || !groupJoinCode.value.trim()) return;
-  const result = joinGroupSpace(activeGroupType, groupJoinCode.value, currentUser.id);
-  if (result.error) {
-    const errors = { invalid: 'Enter a valid join code.', not_found: 'No matching space found.', wrong_type: 'This code belongs to a different space type.' };
-    groupJoinCode.setCustomValidity(errors[result.error]);
-    groupJoinCode.reportValidity();
-    return;
-  }
-  groupJoinCode.setCustomValidity('');
-  renderGroupHub(result.space, result.role);
-});
+backToHubBtn?.addEventListener('click', () => renderPitchHub());
