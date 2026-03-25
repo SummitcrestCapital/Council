@@ -16,9 +16,13 @@
     <main class="page-shell">
       <header class="brand-header">
         <div class="brand-mark" aria-hidden="true">
-          <div class="mountain mountain-back"></div>
-          <div class="mountain mountain-front"></div>
-          <div class="waterline"></div>
+          <svg viewBox="0 0 128 128" role="img" aria-label="Summitcrest inspired mark">
+            <circle cx="64" cy="64" r="58" class="mark-outer" />
+            <circle cx="64" cy="64" r="47" class="mark-inner" />
+            <path d="M31 76 L52 45 L66 64 L82 38 L100 76" class="mark-mountain" />
+            <path d="M28 80 H100" class="mark-line" />
+            <path d="M38 88 C48 84, 57 92, 67 88 C76 84, 84 92, 94 88" class="mark-wave" />
+          </svg>
         </div>
         <div class="brand-copy">
           <p class="eyebrow">Powered by Summitcrest</p>
@@ -34,6 +38,57 @@
           <label>
             Full name
             <input type="text" name="fullName" required autocomplete="name" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required autocomplete="email" />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required minlength="8" autocomplete="new-password" />
+          </label>
+          <button type="submit">Create account</button>
+        </form>
+      </section>
+
+      <section id="space-screen" class="panel hidden" aria-labelledby="space-title">
+        <h2 id="space-title">Choose your path</h2>
+        <p class="panel-text">Select how you want to experience Council.</p>
+        <div class="option-grid" id="mode-options">
+          <button class="option-card" type="button" data-type="individual">Learn on your own</button>
+          <button class="option-card" type="button" data-type="club">Join a club</button>
+          <button class="option-card" type="button" data-type="class">Join a class</button>
+        </div>
+
+        <form id="space-actions" class="space-actions hidden">
+          <p id="space-mode-label" class="mode-label"></p>
+          <label>
+            Space name
+            <input id="space-name" type="text" name="spaceName" placeholder="e.g., Summitcrest Cohort A" required />
+          </label>
+
+          <div class="action-row">
+            <button type="submit" id="create-space-btn">Create space</button>
+            <span class="or-divider">or</span>
+            <label class="join-code-label">
+              Join with code
+              <input id="join-code" type="text" name="joinCode" maxlength="8" placeholder="ABC123" />
+            </label>
+            <button type="button" id="join-space-btn" class="secondary">Join space</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="dashboard-screen" class="panel hidden" aria-live="polite">
+        <h2 id="dashboard-title">Dashboard</h2>
+        <p id="dashboard-subtitle" class="panel-text"></p>
+        <div id="dashboard-grid" class="dashboard-grid"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
           </label>
           <label>
             Email
