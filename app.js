@@ -1,6 +1,8 @@
-const DB_KEY = 'council-db-v6';
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
+const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_9vlBuHDWJJdBJ9NuDlTWmg_4X2mDwIY';
+const DEFAULT_INDIVIDUAL_SPACE_SLUG = 'individual';
 
 const HUB_SLIDES = [
   { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
@@ -97,7 +99,10 @@ const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
 
-let db = loadDb();
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+});
+let db = { users: [], sessions: [], spaces: [] };
 let currentUser = null;
 let activeSession = null;
 let currentSlideIndex = 0;
@@ -108,23 +113,8 @@ let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
 
-function loadDb() {
-  const saved = localStorage.getItem(DB_KEY);
-  if (!saved) return { users: [], sessions: [], spaces: [] };
-  try {
-    const parsed = JSON.parse(saved);
-    return {
-      users: Array.isArray(parsed.users) ? parsed.users : [],
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      spaces: Array.isArray(parsed.spaces) ? parsed.spaces : [],
-    };
-  } catch {
-    return { users: [], sessions: [], spaces: [] };
-  }
-}
-
-const saveDb = () => localStorage.setItem(DB_KEY, JSON.stringify(db));
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+const saveDb = () => {};
 const generateJoinCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 const currentCycleName = () => new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 const cycleDeadline = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); };
@@ -132,12 +122,110 @@ const daysUntilDeadline = () => Math.max(0, Math.ceil((cycleDeadline().getTime()
 
 function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
-function createUser({ fullName, email }) {
-  const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
-  db.users.push(user); saveDb(); return user;
+function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
+
+async function ensureProfileFromAuth(authUser, fullName = '') {
+  const profilePayload = { id: authUser.id, email: authUser.email || '' };
+  if (fullName) profilePayload.full_name = fullName;
+  const { data, error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }).select('*').single();
+  if (error) throw error;
+  return data;
 }
 
-function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
+async function getOrCreateIndividualSpace() {
+  let { data: space, error } = await supabase.from('spaces').select('*').eq('slug', DEFAULT_INDIVIDUAL_SPACE_SLUG).maybeSingle();
+  if (error) throw error;
+  if (space) return space;
+  const insertPayload = { type: 'individual', name: 'Individual', slug: DEFAULT_INDIVIDUAL_SPACE_SLUG };
+  const created = await supabase.from('spaces').insert(insertPayload).select('*').single();
+  if (created.error) throw created.error;
+  return created.data;
+}
+
+async function getCurrentCycle() {
+  const cycleName = currentCycleName();
+  let query = await supabase.from('cycles').select('*').eq('name', cycleName).maybeSingle();
+  if (query.error) throw query.error;
+  if (query.data) return query.data;
+  const deadline = cycleDeadline().toISOString();
+  const created = await supabase.from('cycles').insert({ name: cycleName, deadline_at: deadline, status: 'active' }).select('*').single();
+  if (created.error) throw created.error;
+  return created.data;
+}
+
+async function ensureMembership(userId, spaceId) {
+  let existing = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (existing.data) return existing.data;
+  const created = await supabase.from('memberships').insert({ user_id: userId, space_id: spaceId, role: 'member' }).select('*').single();
+  if (created.error) throw created.error;
+  return created.data;
+}
+
+function normalizeParticipantRecord(participant) {
+  return {
+    id: participant.id,
+    userId: participant.user_id,
+    cycleId: participant.cycle_id,
+    spaceId: participant.space_id,
+    cycleName: participant.cycles?.name || currentCycleName(),
+    sector: participant.sector || SECTORS[0],
+    joinedCycle: Boolean(participant.joined_at),
+    joinedAt: participant.joined_at || null,
+    ticker: participant.ticker || '',
+    companyName: participant.company_name || '',
+    tickerLocked: Boolean(participant.ticker_locked),
+    submittedAt: participant.submitted_at || null,
+    status: participant.status || 'in_progress',
+    slideResponses: emptySlideResponses(),
+    createdAt: participant.created_at || new Date().toISOString(),
+  };
+}
+
+async function loadPitchSectionsForParticipant(participantId) {
+  const { data, error } = await supabase.from('pitch_sections').select('*').eq('cycle_participant_id', participantId);
+  if (error) throw error;
+  const responses = emptySlideResponses();
+  (data || []).forEach((section) => {
+    responses[section.section_key] = {
+      input: section.content || '',
+      extras: section.extras || {},
+      images: section.images || [],
+    };
+  });
+  return responses;
+}
+
+async function savePitchSection(participantId, sectionKey, response) {
+  const payload = {
+    cycle_participant_id: participantId,
+    section_key: sectionKey,
+    content: response.input || '',
+    extras: response.extras || {},
+    images: response.images || [],
+  };
+  const { error } = await supabase.from('pitch_sections').upsert(payload, { onConflict: 'cycle_participant_id,section_key' });
+  if (error) throw error;
+}
+
+async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
+  const { data, error } = await supabase.from('cycle_participants').select('*,cycles(name)').eq('user_id', userId).eq('cycle_id', cycleId).eq('space_id', spaceId).maybeSingle();
+  if (error) throw error;
+  if (data) return normalizeParticipantRecord(data);
+
+  const created = await supabase.from('cycle_participants')
+    .insert({
+      user_id: userId,
+      cycle_id: cycleId,
+      space_id: spaceId,
+      sector: SECTORS[Math.floor(Math.random() * SECTORS.length)],
+      status: 'in_progress',
+    })
+    .select('*,cycles(name)')
+    .single();
+  if (created.error) throw created.error;
+  return normalizeParticipantRecord(created.data);
+}
 
 function getOrCreateSession(userId) {
   const cycleName = currentCycleName();
@@ -195,6 +283,37 @@ function addClubMemberRole(clubId, userId, displayName, role) {
 
 function hideAllMainScreens() {
   modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
+}
+
+async function routeAuthenticatedUser() {
+  const authUser = (await supabase.auth.getUser()).data.user;
+  if (!authUser) {
+    signupScreen.classList.remove('hidden');
+    hideAllMainScreens();
+    return;
+  }
+  const profile = await ensureProfileFromAuth(authUser);
+  currentUser = { id: profile.id, fullName: profile.full_name || authUser.email || 'Member', email: profile.email || authUser.email || '' };
+  signupScreen.classList.add('hidden');
+  modeScreen.classList.remove('hidden');
+  setModeButtonActive('individual-btn');
+  currentContext = 'individual';
+
+  const individualSpace = await getOrCreateIndividualSpace();
+  await ensureMembership(currentUser.id, individualSpace.id);
+  const activeCycle = await getCurrentCycle();
+  activeSession = await getOrCreateCycleParticipant({ userId: currentUser.id, cycleId: activeCycle.id, spaceId: individualSpace.id });
+  activeSession.slideResponses = await loadPitchSectionsForParticipant(activeSession.id);
+  currentSlideIndex = 0;
+
+  if (!activeSession.joinedCycle || !activeSession.tickerLocked) {
+    hideAllMainScreens();
+    cycleScreen.classList.remove('hidden');
+    groupActions.classList.add('hidden');
+    renderCycleStep();
+    return;
+  }
+  renderPitchHub();
 }
 
 
@@ -287,7 +406,7 @@ function renderPitchHub() {
   hubSector.textContent = `Sector: ${activeSession.sector}`;
   hubCountdown.textContent = `${daysUntilDeadline()} day(s) left in cycle`;
   hubTicker.textContent = `Ticker: ${activeSession.ticker}`;
-  hubCompany.textContent = `Company: ${activeSession.ticker || 'Not selected'} (name lookup coming soon)`;
+  hubCompany.textContent = `Company: ${activeSession.companyName || activeSession.ticker || 'Not selected'}`;
   deadlineText.textContent = `${daysUntilDeadline()} days left to submit.`;
   renderProgress();
   renderSlide();
@@ -362,25 +481,36 @@ function renderClubDashboard() {
 }
 
 // Events
-signupForm?.addEventListener('submit', (event) => {
+signupForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(signupForm);
-  currentUser = createUser({ fullName: String(formData.get('fullName') || '').trim(), email: String(formData.get('email') || '').trim() });
-  signupScreen.classList.add('hidden');
-  modeScreen.classList.remove('hidden');
+  const fullName = String(formData.get('fullName') || '').trim();
+  const email = String(formData.get('email') || '').trim();
+  const password = String(formData.get('password') || '');
+  try {
+    const signIn = await supabase.auth.signInWithPassword({ email, password });
+    if (signIn.error) {
+      const signUp = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+      if (signUp.error) throw signUp.error;
+    }
+    const authUser = (await supabase.auth.getUser()).data.user;
+    if (!authUser) throw new Error('Authentication failed. Please try again.');
+    await ensureProfileFromAuth(authUser, fullName);
+    await routeAuthenticatedUser();
+  } catch (error) {
+    // eslint-disable-next-line no-alert
+    alert(error.message || 'Unable to authenticate right now.');
+  }
 });
 
-individualBtn?.addEventListener('click', () => {
+individualBtn?.addEventListener('click', async () => {
   if (!currentUser?.id) return;
-  setModeButtonActive('individual-btn');
-  currentContext = 'individual';
-  activeSession = getOrCreateSession(currentUser.id);
-  currentSlideIndex = 0;
-  hideAllMainScreens();
-  cycleScreen.classList.remove('hidden');
-  groupActions.classList.add('hidden');
-  renderCycleStep();
-  if (activeSession.tickerLocked) renderPitchHub();
+  try {
+    await routeAuthenticatedUser();
+  } catch (error) {
+    // eslint-disable-next-line no-alert
+    alert(error.message || 'Unable to load your session.');
+  }
 });
 
 clubBtn?.addEventListener('click', () => {
@@ -452,12 +582,21 @@ clubGroupsList?.addEventListener('click', (event) => {
   }
 });
 
-joinCycleBtn?.addEventListener('click', () => {
+joinCycleBtn?.addEventListener('click', async () => {
   if (!activeSession || activeSession.joinedCycle) return;
-  activeSession.joinedCycle = true;
-  activeSession.joinedAt = new Date().toISOString();
-  saveDb();
-  renderCycleStep();
+  try {
+    const joinedAt = new Date().toISOString();
+    activeSession.joinedCycle = true;
+    activeSession.joinedAt = joinedAt;
+    if (currentContext === 'individual') {
+      const { error } = await supabase.from('cycle_participants').update({ joined_at: joinedAt, status: 'in_progress' }).eq('id', activeSession.id);
+      if (error) throw error;
+    } else saveDb();
+    renderCycleStep();
+  } catch (error) {
+    // eslint-disable-next-line no-alert
+    alert(error.message || 'Unable to join cycle.');
+  }
 });
 
 lockTickerBtn?.addEventListener('click', () => {
@@ -469,12 +608,24 @@ lockTickerBtn?.addEventListener('click', () => {
   lockModal.classList.remove('hidden');
 });
 
-confirmLockBtn?.addEventListener('click', () => {
+confirmLockBtn?.addEventListener('click', async () => {
   if (!activeSession?.ticker) return;
-  activeSession.tickerLocked = true;
-  saveDb();
-  lockModal.classList.add('hidden');
-  renderPitchHub();
+  try {
+    activeSession.tickerLocked = true;
+    if (currentContext === 'individual') {
+      const { error } = await supabase.from('cycle_participants').update({
+        ticker: activeSession.ticker,
+        company_name: activeSession.ticker,
+        ticker_locked: true,
+      }).eq('id', activeSession.id);
+      if (error) throw error;
+    } else saveDb();
+    lockModal.classList.add('hidden');
+    renderPitchHub();
+  } catch (error) {
+    // eslint-disable-next-line no-alert
+    alert(error.message || 'Unable to lock ticker.');
+  }
 });
 cancelLockBtn?.addEventListener('click', () => lockModal.classList.add('hidden'));
 
@@ -495,7 +646,7 @@ slideImageUpload?.addEventListener('change', async () => {
   renderImagePreview(pendingSlideImages);
 });
 
-saveSlideBtn?.addEventListener('click', () => {
+saveSlideBtn?.addEventListener('click', async () => {
   if (!activeSession || activeSession.submittedAt) return;
   const slide = HUB_SLIDES[currentSlideIndex];
   const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
@@ -511,11 +662,17 @@ saveSlideBtn?.addEventListener('click', () => {
 
   activeSession.slideResponses[slide.key] = response;
   pendingSlideImages = null;
-  saveDb();
-  renderPitchHub();
+  try {
+    if (currentContext === 'individual') await savePitchSection(activeSession.id, slide.key, response);
+    else saveDb();
+    renderPitchHub();
+  } catch (error) {
+    // eslint-disable-next-line no-alert
+    alert(error.message || 'Unable to save section.');
+  }
 });
 
-submitPitchBtn?.addEventListener('click', () => {
+submitPitchBtn?.addEventListener('click', async () => {
   if (!activeSession || activeSession.submittedAt) return;
   const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
   if (completed < MIN_REQUIRED_SECTIONS) return;
@@ -529,8 +686,16 @@ submitPitchBtn?.addEventListener('click', () => {
     }
   }
 
-  saveDb();
-  renderPitchHub();
+  try {
+    if (currentContext === 'individual') {
+      const { error } = await supabase.from('cycle_participants').update({ submitted_at: activeSession.submittedAt, status: 'submitted' }).eq('id', activeSession.id);
+      if (error) throw error;
+    } else saveDb();
+    renderPitchHub();
+  } catch (error) {
+    // eslint-disable-next-line no-alert
+    alert(error.message || 'Unable to submit pitch.');
+  }
 });
 
 viewPresentationBtn?.addEventListener('click', () => {
@@ -543,3 +708,26 @@ viewPresentationBtn?.addEventListener('click', () => {
 backToHubBtn?.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn?.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn?.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
+
+supabase.auth.onAuthStateChange(async (event) => {
+  if (event === 'SIGNED_OUT') {
+    currentUser = null;
+    activeSession = null;
+    signupScreen.classList.remove('hidden');
+    hideAllMainScreens();
+    return;
+  }
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+    try {
+      await routeAuthenticatedUser();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+});
+
+routeAuthenticatedUser().catch((error) => {
+  console.error(error);
+  signupScreen.classList.remove('hidden');
+  hideAllMainScreens();
+});
