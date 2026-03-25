@@ -1,16 +1,15 @@
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
 const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg';
-const DEFAULT_INDIVIDUAL_SPACE_SLUG = 'individual';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg'; 
 
 const HUB_SLIDES = [
   { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
-  { key: 'company_overview', title: '2. Company Overview', prompt: 'Explain the company and how it operates.', helper: ['What does the company do?', 'How does it make money?', 'Who are its customers?', 'What makes it different?'], lookFor: ['Clear business model.', 'Revenue sources.', 'Competitive advantage (moat).', 'Key segments.', 'Basic management insight (optional for MVP).'], shortcuts: ['Company website → About', 'Yahoo Finance → Profile', 'Google: “how does [company] make money”'], imageHint: 'Helpful visuals: business model diagram, revenue breakdown chart, product/service image.', placeholder: 'Paragraph or bullet mix (4–8 sentences).' },
-  { key: 'industry_overview', title: '3. Industry Overview', prompt: 'What industry does this company operate in and what is happening in it?', helper: ['How big is the industry?', 'Is it growing or shrinking?', 'What trends are shaping it?', 'Who are the competitors?'], lookFor: ['Industry size or importance.', 'Growth trends.', 'Major players.', 'Tailwinds (AI, healthcare, etc.).', 'Headwinds (regulation, slowdown).'], shortcuts: ['Google: “[industry] market size growth”', 'Google: “[company] competitors”', 'News on industry trends'], imageHint: 'Helpful visuals: industry growth chart, competitor map, trend graphic.', placeholder: 'Paragraph or bullets.' },
-  { key: 'stock_analysis', title: '4. Stock Analysis (Metrics + Comparison)', prompt: 'What do the numbers tell you about this company?', helper: ['Look at key financial metrics.', 'Compare to competitors or market.', 'Identify what stands out.'], lookFor: ['P/E ratio.', 'Revenue growth.', 'Profit margins.', 'Comparison vs competitors.', 'Comparison vs S&P 500 (basic).'], shortcuts: ['Yahoo Finance → Key Statistics', 'Google: “[company] PE ratio”', 'Google: “[company] vs competitors”'], imageHint: 'Helpful visuals: stock price chart (must-have), metrics table, earnings/revenue trend graph.', placeholder: 'Short explanation + key stats.', extra: 'metrics' },
-  { key: 'thesis', title: '5. Thesis (Core Section)', prompt: 'What is the unique opportunity here?', helper: ['What is NOT fully understood by the market?', 'Why is this stock mispriced?', 'What makes this special?'], lookFor: ['Specific, not generic.', '“Hidden value” or overlooked factor.', 'Clear reasoning.', 'Not just “good company”.'], shortcuts: ['Earnings reports (summary)', 'News about company strategy', 'Analyst opinions (optional)'], imageHint: 'Helpful visuals: one supporting chart, one key highlighted stat, optional mini idea diagram.', placeholder: '1–2 strong paragraphs.' },
-  { key: 'catalysts', title: '6. Catalysts (Upside + Risks + Scenarios)', prompt: 'What events could drive this stock up or down?', helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'], lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'], shortcuts: ['Google: “[company] outlook”', 'News: “[company] growth plans”', 'Google: “[company] risks”'], imageHint: 'Helpful visuals: catalyst timeline, scenario chart, upside-vs-risk visual split.', placeholder: 'Bullets split into Upside and Risks.' },
+  { key: 'company_overview', title: '2. Company Overview', prompt: 'Explain the company and how it operates.', helper: ['What does the company do?', 'How does it make money?', 'Who are its customers?', 'What makes it different?'], lookFor: ['Clear business model.', 'Revenue sources.', 'Competitive advantage (moat).', 'Key segments.', 'Basic management insight (optional for MVP).'], shortcuts: ['Company website → About', 'Yahoo Finance → Profile', 'Google: "how does [company] make money"'], imageHint: 'Helpful visuals: business model diagram, revenue breakdown chart, product/service image.', placeholder: 'Paragraph or bullet mix (4–8 sentences).' },
+  { key: 'industry_overview', title: '3. Industry Overview', prompt: 'What industry does this company operate in and what is happening in it?', helper: ['How big is the industry?', 'Is it growing or shrinking?', 'What trends are shaping it?', 'Who are the competitors?'], lookFor: ['Industry size or importance.', 'Growth trends.', 'Major players.', 'Tailwinds (AI, healthcare, etc.).', 'Headwinds (regulation, slowdown).'], shortcuts: ['Google: "[industry] market size growth"', 'Google: "[company] competitors"', 'News on industry trends'], imageHint: 'Helpful visuals: industry growth chart, competitor map, trend graphic.', placeholder: 'Paragraph or bullets.' },
+  { key: 'stock_analysis', title: '4. Stock Analysis (Metrics + Comparison)', prompt: 'What do the numbers tell you about this company?', helper: ['Look at key financial metrics.', 'Compare to competitors or market.', 'Identify what stands out.'], lookFor: ['P/E ratio.', 'Revenue growth.', 'Profit margins.', 'Comparison vs competitors.', 'Comparison vs S&P 500 (basic).'], shortcuts: ['Yahoo Finance → Key Statistics', 'Google: "[company] PE ratio"', 'Google: "[company] vs competitors"'], imageHint: 'Helpful visuals: stock price chart (must-have), metrics table, earnings/revenue trend graph.', placeholder: 'Short explanation + key stats.', extra: 'metrics' },
+  { key: 'thesis', title: '5. Thesis (Core Section)', prompt: 'What is the unique opportunity here?', helper: ['What is NOT fully understood by the market?', 'Why is this stock mispriced?', 'What makes this special?'], lookFor: ['Specific, not generic.', '"Hidden value" or overlooked factor.', 'Clear reasoning.', 'Not just "good company".'], shortcuts: ['Earnings reports (summary)', 'News about company strategy', 'Analyst opinions (optional)'], imageHint: 'Helpful visuals: one supporting chart, one key highlighted stat, optional mini idea diagram.', placeholder: '1–2 strong paragraphs.' },
+  { key: 'catalysts', title: '6. Catalysts (Upside + Risks + Scenarios)', prompt: 'What events could drive this stock up or down?', helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'], lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'], shortcuts: ['Google: "[company] outlook"', 'News: "[company] growth plans"', 'Google: "[company] risks"'], imageHint: 'Helpful visuals: catalyst timeline, scenario chart, upside-vs-risk visual split.', placeholder: 'Bullets split into Upside and Risks.' },
   { key: 'conclusion', title: '7. Conclusion', prompt: 'What is your final investment decision?', helper: ['Should someone buy this now?', 'Is this short-term or long-term?', 'How confident are you?'], lookFor: ['Clear recommendation.', 'Consistent with thesis.', 'Time horizon awareness.'], shortcuts: [], imageHint: 'Helpful visuals: simple price target view, risk/reward diagram, or final summary box.', placeholder: 'Final decision notes.', extra: 'conclusion' },
 ];
 
@@ -113,6 +112,9 @@ let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
 
+// FIX: Prevent routeAuthenticatedUser from running concurrently (onAuthStateChange + bottom-of-file call)
+let isRouting = false;
+
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 const saveDb = () => {};
 const generateJoinCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -133,33 +135,50 @@ async function ensureProfileFromAuth(authUser, fullName = '') {
 }
 
 async function getOrCreateIndividualSpace() {
+  // FIX: Added explicit error logging so failures here surface rather than silently blocking sign-in
   let { data: space, error } = await supabase.from('spaces').select('*').eq('slug', DEFAULT_INDIVIDUAL_SPACE_SLUG).maybeSingle();
-  if (error) throw error;
+  if (error) {
+    console.error('getOrCreateIndividualSpace select error:', error);
+    throw error;
+  }
   if (space) return space;
-  const insertPayload = { type: 'individual', name: 'Individual', slug: DEFAULT_INDIVIDUAL_SPACE_SLUG };
-  const created = await supabase.from('spaces').insert(insertPayload).select('*').single();
-  if (created.error) throw created.error;
-  return created.data;
+  const { data: created, error: insertError } = await supabase
+    .from('spaces')
+    .insert({ type: 'individual', name: 'Individual', slug: DEFAULT_INDIVIDUAL_SPACE_SLUG })
+    .select('*')
+    .single();
+  if (insertError) {
+    console.error('getOrCreateIndividualSpace insert error:', insertError);
+    throw insertError;
+  }
+  return created;
 }
 
 async function getCurrentCycle() {
   const cycleName = currentCycleName();
-  let query = await supabase.from('cycles').select('*').eq('name', cycleName).maybeSingle();
-  if (query.error) throw query.error;
-  if (query.data) return query.data;
-  const deadline = cycleDeadline().toISOString();
-  const created = await supabase.from('cycles').insert({ name: cycleName, deadline_at: deadline, status: 'active' }).select('*').single();
-  if (created.error) throw created.error;
-  return created.data;
+  const { data, error } = await supabase.from('cycles').select('*').eq('name', cycleName).maybeSingle();
+  if (error) throw error;
+  if (data) return data;
+  const { data: created, error: insertError } = await supabase
+    .from('cycles')
+    .insert({ name: cycleName, deadline_at: cycleDeadline().toISOString(), status: 'active' })
+    .select('*')
+    .single();
+  if (insertError) throw insertError;
+  return created;
 }
 
 async function ensureMembership(userId, spaceId) {
-  let existing = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
-  if (existing.error) throw existing.error;
-  if (existing.data) return existing.data;
-  const created = await supabase.from('memberships').insert({ user_id: userId, space_id: spaceId, role: 'member' }).select('*').single();
-  if (created.error) throw created.error;
-  return created.data;
+  const { data: existing, error } = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
+  if (error) throw error;
+  if (existing) return existing;
+  const { data: created, error: insertError } = await supabase
+    .from('memberships')
+    .insert({ user_id: userId, space_id: spaceId, role: 'member' })
+    .select('*')
+    .single();
+  if (insertError) throw insertError;
+  return created;
 }
 
 function normalizeParticipantRecord(participant) {
@@ -213,7 +232,7 @@ async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
   if (error) throw error;
   if (data) return normalizeParticipantRecord(data);
 
-  const created = await supabase.from('cycle_participants')
+  const { data: created, error: insertError } = await supabase.from('cycle_participants')
     .insert({
       user_id: userId,
       cycle_id: cycleId,
@@ -223,8 +242,8 @@ async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
     })
     .select('*,cycles(name)')
     .single();
-  if (created.error) throw created.error;
-  return normalizeParticipantRecord(created.data);
+  if (insertError) throw insertError;
+  return normalizeParticipantRecord(created);
 }
 
 function getOrCreateSession(userId) {
@@ -285,37 +304,50 @@ function hideAllMainScreens() {
   modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
+// FIX: routeAuthenticatedUser now shows visible errors to the user instead of silently failing
+// and has a concurrency guard to prevent double-execution from onAuthStateChange + direct call
 async function routeAuthenticatedUser() {
-  const authUser = (await supabase.auth.getUser()).data.user;
-  if (!authUser) {
+  if (isRouting) return;
+  isRouting = true;
+  try {
+    const authUser = (await supabase.auth.getUser()).data.user;
+    if (!authUser) {
+      signupScreen.classList.remove('hidden');
+      hideAllMainScreens();
+      return;
+    }
+    const profile = await ensureProfileFromAuth(authUser);
+    currentUser = { id: profile.id, fullName: profile.full_name || authUser.email || 'Member', email: profile.email || authUser.email || '' };
+    signupScreen.classList.add('hidden');
+    modeScreen.classList.remove('hidden');
+    setModeButtonActive('individual-btn');
+    currentContext = 'individual';
+
+    const individualSpace = await getOrCreateIndividualSpace();
+    await ensureMembership(currentUser.id, individualSpace.id);
+    const activeCycle = await getCurrentCycle();
+    activeSession = await getOrCreateCycleParticipant({ userId: currentUser.id, cycleId: activeCycle.id, spaceId: individualSpace.id });
+    activeSession.slideResponses = await loadPitchSectionsForParticipant(activeSession.id);
+    currentSlideIndex = 0;
+
+    if (!activeSession.joinedCycle || !activeSession.tickerLocked) {
+      hideAllMainScreens();
+      cycleScreen.classList.remove('hidden');
+      groupActions.classList.add('hidden');
+      renderCycleStep();
+      return;
+    }
+    renderPitchHub();
+  } catch (error) {
+    console.error('routeAuthenticatedUser failed:', error);
+    // FIX: Show the error to the user so they know why they're stuck, instead of a silent freeze
     signupScreen.classList.remove('hidden');
     hideAllMainScreens();
-    return;
+    alert(`Sign-in error: ${error.message || 'Something went wrong. Check the console for details.'}`);
+  } finally {
+    isRouting = false;
   }
-  const profile = await ensureProfileFromAuth(authUser);
-  currentUser = { id: profile.id, fullName: profile.full_name || authUser.email || 'Member', email: profile.email || authUser.email || '' };
-  signupScreen.classList.add('hidden');
-  modeScreen.classList.remove('hidden');
-  setModeButtonActive('individual-btn');
-  currentContext = 'individual';
-
-  const individualSpace = await getOrCreateIndividualSpace();
-  await ensureMembership(currentUser.id, individualSpace.id);
-  const activeCycle = await getCurrentCycle();
-  activeSession = await getOrCreateCycleParticipant({ userId: currentUser.id, cycleId: activeCycle.id, spaceId: individualSpace.id });
-  activeSession.slideResponses = await loadPitchSectionsForParticipant(activeSession.id);
-  currentSlideIndex = 0;
-
-  if (!activeSession.joinedCycle || !activeSession.tickerLocked) {
-    hideAllMainScreens();
-    cycleScreen.classList.remove('hidden');
-    groupActions.classList.add('hidden');
-    renderCycleStep();
-    return;
-  }
-  renderPitchHub();
 }
-
 
 function setModeButtonActive(active) {
   [individualBtn, clubBtn, classBtn].forEach((btn) => {
@@ -498,7 +530,6 @@ signupForm?.addEventListener('submit', async (event) => {
     await ensureProfileFromAuth(authUser, fullName);
     await routeAuthenticatedUser();
   } catch (error) {
-    // eslint-disable-next-line no-alert
     alert(error.message || 'Unable to authenticate right now.');
   }
 });
@@ -508,7 +539,6 @@ individualBtn?.addEventListener('click', async () => {
   try {
     await routeAuthenticatedUser();
   } catch (error) {
-    // eslint-disable-next-line no-alert
     alert(error.message || 'Unable to load your session.');
   }
 });
@@ -594,7 +624,6 @@ joinCycleBtn?.addEventListener('click', async () => {
     } else saveDb();
     renderCycleStep();
   } catch (error) {
-    // eslint-disable-next-line no-alert
     alert(error.message || 'Unable to join cycle.');
   }
 });
@@ -623,7 +652,6 @@ confirmLockBtn?.addEventListener('click', async () => {
     lockModal.classList.add('hidden');
     renderPitchHub();
   } catch (error) {
-    // eslint-disable-next-line no-alert
     alert(error.message || 'Unable to lock ticker.');
   }
 });
@@ -667,7 +695,6 @@ saveSlideBtn?.addEventListener('click', async () => {
     else saveDb();
     renderPitchHub();
   } catch (error) {
-    // eslint-disable-next-line no-alert
     alert(error.message || 'Unable to save section.');
   }
 });
@@ -693,7 +720,6 @@ submitPitchBtn?.addEventListener('click', async () => {
     } else saveDb();
     renderPitchHub();
   } catch (error) {
-    // eslint-disable-next-line no-alert
     alert(error.message || 'Unable to submit pitch.');
   }
 });
@@ -709,6 +735,7 @@ backToHubBtn?.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn?.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn?.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
 
+// FIX: onAuthStateChange now skips re-routing during an active routing call to prevent race conditions
 supabase.auth.onAuthStateChange(async (event) => {
   if (event === 'SIGNED_OUT') {
     currentUser = null;
@@ -726,8 +753,7 @@ supabase.auth.onAuthStateChange(async (event) => {
   }
 });
 
-routeAuthenticatedUser().catch((error) => {
-  console.error(error);
-  signupScreen.classList.remove('hidden');
-  hideAllMainScreens();
-});
+// FIX: Removed the duplicate direct call here — onAuthStateChange fires INITIAL_SESSION on load
+// which already calls routeAuthenticatedUser. The old direct call below caused a race condition
+// where two concurrent routing attempts would both modify shared state (currentUser, activeSession).
+// routeAuthenticatedUser().catch((error) => { ... }) <-- removed
