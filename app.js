@@ -1,4 +1,4 @@
-const DB_KEY = 'council-db-v4';
+const DB_KEY = 'council-db-v5';
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
 
@@ -10,6 +10,7 @@ const HUB_SLIDES = [
     helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'],
     lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'],
     shortcuts: ['None needed — this is YOUR synthesis.'],
+    imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.',
     placeholder: 'Write 3–5 bullets.',
   },
   {
@@ -19,6 +20,7 @@ const HUB_SLIDES = [
     helper: ['What does the company do?', 'How does it make money?', 'Who are its customers?', 'What makes it different?'],
     lookFor: ['Clear business model.', 'Revenue sources.', 'Competitive advantage (moat).', 'Key segments.', 'Basic management insight (optional for MVP).'],
     shortcuts: ['Company website → About', 'Yahoo Finance → Profile', 'Google: “how does [company] make money”'],
+    imageHint: 'Helpful visuals: business model diagram, revenue breakdown chart, product/service image.',
     placeholder: 'Paragraph or bullet mix (4–8 sentences).',
   },
   {
@@ -28,6 +30,7 @@ const HUB_SLIDES = [
     helper: ['How big is the industry?', 'Is it growing or shrinking?', 'What trends are shaping it?', 'Who are the competitors?'],
     lookFor: ['Industry size or importance.', 'Growth trends.', 'Major players.', 'Tailwinds (AI, healthcare, etc.).', 'Headwinds (regulation, slowdown).'],
     shortcuts: ['Google: “[industry] market size growth”', 'Google: “[company] competitors”', 'News on industry trends'],
+    imageHint: 'Helpful visuals: industry growth chart, competitor map, trend graphic.',
     placeholder: 'Paragraph or bullets.',
   },
   {
@@ -37,6 +40,7 @@ const HUB_SLIDES = [
     helper: ['Look at key financial metrics.', 'Compare to competitors or market.', 'Identify what stands out.'],
     lookFor: ['P/E ratio.', 'Revenue growth.', 'Profit margins.', 'Comparison vs competitors.', 'Comparison vs S&P 500 (basic).'],
     shortcuts: ['Yahoo Finance → Key Statistics', 'Google: “[company] PE ratio”', 'Google: “[company] vs competitors”'],
+    imageHint: 'Helpful visuals: stock price chart (must-have), metrics table, earnings/revenue trend graph.',
     placeholder: 'Short explanation + key stats.',
     extra: 'metrics',
   },
@@ -47,6 +51,7 @@ const HUB_SLIDES = [
     helper: ['What is NOT fully understood by the market?', 'Why is this stock mispriced?', 'What makes this special?'],
     lookFor: ['Specific, not generic.', '“Hidden value” or overlooked factor.', 'Clear reasoning.', 'Not just “good company”.'],
     shortcuts: ['Earnings reports (summary)', 'News about company strategy', 'Analyst opinions (optional)'],
+    imageHint: 'Helpful visuals: one supporting chart, one key highlighted stat, optional mini idea diagram.',
     placeholder: '1–2 strong paragraphs.',
   },
   {
@@ -56,6 +61,7 @@ const HUB_SLIDES = [
     helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'],
     lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'],
     shortcuts: ['Google: “[company] outlook”', 'News: “[company] growth plans”', 'Google: “[company] risks”'],
+    imageHint: 'Helpful visuals: catalyst timeline, scenario chart, upside-vs-risk visual split.',
     placeholder: 'Bullets split into Upside and Risks.',
   },
   {
@@ -65,6 +71,7 @@ const HUB_SLIDES = [
     helper: ['Should someone buy this now?', 'Is this short-term or long-term?', 'How confident are you?'],
     lookFor: ['Clear recommendation.', 'Consistent with thesis.', 'Time horizon awareness.'],
     shortcuts: [],
+    imageHint: 'Helpful visuals: simple price target view, risk/reward diagram, or final summary box.',
     placeholder: 'Final decision notes.',
     extra: 'conclusion',
   },
@@ -75,6 +82,7 @@ const modeScreen = document.querySelector('#mode-screen');
 const cycleScreen = document.querySelector('#cycle-screen');
 const pitchHub = document.querySelector('#pitch-hub');
 const groupHub = document.querySelector('#group-hub');
+const presentationView = document.querySelector('#presentation-view');
 
 const signupForm = document.querySelector('#signup-form');
 const individualBtn = document.querySelector('#individual-btn');
@@ -106,6 +114,7 @@ const hubCompany = document.querySelector('#hub-company');
 const progressPercent = document.querySelector('#progress-percent');
 const progressList = document.querySelector('#progress-list');
 const submitPitchBtn = document.querySelector('#submit-pitch-btn');
+const viewPresentationBtn = document.querySelector('#view-presentation-btn');
 const submitNote = document.querySelector('#submit-note');
 const deadlineText = document.querySelector('#deadline-text');
 
@@ -122,16 +131,23 @@ const slideShortcutsList = document.querySelector('#slide-shortcuts-list');
 const slideInput = document.querySelector('#slide-input');
 const slideExtraFields = document.querySelector('#slide-extra-fields');
 const saveSlideBtn = document.querySelector('#save-slide-btn');
+const slideImageUpload = document.querySelector('#slide-image-upload');
+const slideImageHint = document.querySelector('#slide-image-hint');
+const slideImagePreview = document.querySelector('#slide-image-preview');
 
 const groupHubTitle = document.querySelector('#group-hub-title');
 const groupHubSubtitle = document.querySelector('#group-hub-subtitle');
 const groupHubCards = document.querySelector('#group-hub-cards');
+
+const presentationSlides = document.querySelector('#presentation-slides');
+const backToHubBtn = document.querySelector('#back-to-hub-btn');
 
 let db = loadDb();
 let currentUser = null;
 let activeSession = null;
 let activeGroupType = null;
 let currentSlideIndex = 0;
+let pendingSlideImages = null;
 
 function loadDb() {
   const saved = localStorage.getItem(DB_KEY);
@@ -155,13 +171,22 @@ function currentCycleName() { return new Date().toLocaleString('en-US', { month:
 function cycleDeadline() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); }
 function daysUntilDeadline() { return Math.max(0, Math.ceil((cycleDeadline().getTime() - Date.now()) / 86400000)); }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
   db.users.push(user); saveDb(); return user;
 }
 
 function emptySlideResponses() {
-  return Object.fromEntries(HUB_SLIDES.map((slide) => [slide.key, { input: '', extras: {} }]));
+  return Object.fromEntries(HUB_SLIDES.map((slide) => [slide.key, { input: '', extras: {}, images: [] }]));
 }
 
 function getOrCreateSession(userId) {
@@ -177,9 +202,12 @@ function getOrCreateSession(userId) {
     };
     db.sessions.push(session); saveDb();
   }
-  if (!session.slideResponses) {
-    session.slideResponses = emptySlideResponses(); saveDb();
-  }
+  if (!session.slideResponses) session.slideResponses = emptySlideResponses();
+  HUB_SLIDES.forEach((slide) => {
+    if (!session.slideResponses[slide.key]) session.slideResponses[slide.key] = { input: '', extras: {}, images: [] };
+    if (!Array.isArray(session.slideResponses[slide.key].images)) session.slideResponses[slide.key].images = [];
+  });
+  saveDb();
   return session;
 }
 
@@ -206,6 +234,7 @@ function hideAllMainScreens() {
   cycleScreen.classList.add('hidden');
   pitchHub.classList.add('hidden');
   groupHub.classList.add('hidden');
+  presentationView.classList.add('hidden');
 }
 
 function renderCycleStep() {
@@ -225,38 +254,57 @@ function statusForSession(session) {
   return completed > 0 ? 'In progress' : 'Not started';
 }
 
+function renderImagePreview(images) {
+  slideImagePreview.innerHTML = images.map((src) => `<img src="${src}" alt="Uploaded visual" class="preview-image" />`).join('');
+}
+
+function readFilesAsDataUrls(files) {
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error('Unable to read image.'));
+          reader.readAsDataURL(file);
+        }),
+    ),
+  );
+}
+
 function renderSlide() {
   const slide = HUB_SLIDES[currentSlideIndex];
-  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {} };
+  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
 
   slidePosition.textContent = `Section ${currentSlideIndex + 1} of ${HUB_SLIDES.length}`;
   slideTitle.textContent = slide.title;
   slidePrompt.textContent = `Prompt: ${slide.prompt}`;
   slideHelper.innerHTML = slide.helper.map((item) => `<li>${item}</li>`).join('');
   slideLookfor.innerHTML = slide.lookFor.map((item) => `<li>${item}</li>`).join('');
+  slideImageHint.textContent = `Visual hint: ${slide.imageHint}`;
 
   slideShortcutsList.innerHTML = slide.shortcuts.length
     ? slide.shortcuts.map((item) => `<li>${item}</li>`).join('')
     : '<li>No shortcuts for this section.</li>';
-  toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden')
-    ? 'Show research shortcuts'
-    : 'Hide research shortcuts';
 
   slideInput.placeholder = slide.placeholder;
   slideInput.value = response.input || '';
+  slideImageUpload.value = '';
+  pendingSlideImages = null;
+  renderImagePreview(response.images || []);
 
   slideExtraFields.classList.add('hidden');
   slideExtraFields.innerHTML = '';
 
   if (slide.extra === 'metrics') {
-    slideExtraFields.classList.remove('hidden');
     const metrics = response.extras.metrics || ['', '', ''];
+    slideExtraFields.classList.remove('hidden');
     slideExtraFields.innerHTML = `
       <h4>Optional: Add 2–3 metrics</h4>
       <div class="mode-options">
-        <input data-metric-index="0" placeholder="Metric 1 (e.g., P/E: 24.3)" value="${metrics[0] || ''}" />
-        <input data-metric-index="1" placeholder="Metric 2" value="${metrics[1] || ''}" />
-        <input data-metric-index="2" placeholder="Metric 3" value="${metrics[2] || ''}" />
+        <input data-metric-index="0" placeholder="Metric 1 (e.g., P/E: 24.3)" value="${escapeHtml(metrics[0] || '')}" />
+        <input data-metric-index="1" placeholder="Metric 2" value="${escapeHtml(metrics[1] || '')}" />
+        <input data-metric-index="2" placeholder="Metric 3" value="${escapeHtml(metrics[2] || '')}" />
       </div>
     `;
   }
@@ -284,7 +332,7 @@ function renderSlide() {
           </select>
         </label>
         <label>Confidence (1–10)
-          <input id="conclusion-confidence" type="number" min="1" max="10" value="${confidence}" />
+          <input id="conclusion-confidence" type="number" min="1" max="10" value="${escapeHtml(confidence)}" />
         </label>
       </div>
     `;
@@ -305,8 +353,9 @@ function renderProgress() {
 
   const canSubmit = completed >= MIN_REQUIRED_SECTIONS && !activeSession.submittedAt;
   submitPitchBtn.disabled = !canSubmit;
+  viewPresentationBtn.classList.toggle('hidden', !activeSession.submittedAt);
   submitNote.textContent = activeSession.submittedAt
-    ? 'Pitch submitted. Everything is now locked.'
+    ? 'Pitch submitted. Everything is now locked. You can now view your completed presentation.'
     : canSubmit
       ? 'Ready to submit your pitch.'
       : `Complete all ${MIN_REQUIRED_SECTIONS} sections to submit.`;
@@ -324,6 +373,84 @@ function renderPitchHub() {
   deadlineText.textContent = `${daysUntilDeadline()} days left to submit.`;
   renderProgress();
   renderSlide();
+}
+
+function renderPresentationDeck() {
+  const responses = activeSession.slideResponses;
+
+  const imageHtml = (images) =>
+    images?.length
+      ? `<div class="presentation-images">${images.map((src) => `<img src="${src}" alt="Slide visual"/>`).join('')}</div>`
+      : '';
+
+  const slide1 = responses.executive_summary || {};
+  const bullets = (slide1.input || '').split('\n').filter(Boolean).map((line) => `<li>${escapeHtml(line)}</li>`).join('');
+
+  const slide2 = responses.company_overview || {};
+  const slide3 = responses.industry_overview || {};
+  const slide4 = responses.stock_analysis || {};
+  const slide5 = responses.thesis || {};
+  const slide6 = responses.catalysts || {};
+  const slide7 = responses.conclusion || {};
+
+  const metrics = (slide4.extras?.metrics || []).filter(Boolean).map((m) => `<li>${escapeHtml(m)}</li>`).join('');
+
+  presentationSlides.innerHTML = `
+    <article class="presentation-slide">
+      <h3>Slide 1 — Executive Summary</h3>
+      <p class="recommendation-text">${escapeHtml(slide7.extras?.recommendation || 'Watch')}</p>
+      <ul>${bullets || `<li>${escapeHtml(slide1.input || '')}</li>`}</ul>
+      ${imageHtml(slide1.images)}
+    </article>
+
+    <article class="presentation-slide two-col">
+      <h3>Slide 2 — Company Overview</h3>
+      <div>
+        <p>${escapeHtml(slide2.input || '')}</p>
+      </div>
+      <div>
+        <p><strong>What they do</strong></p>
+        <p><strong>Revenue model</strong></p>
+        <p><strong>Key segments</strong></p>
+      </div>
+      ${imageHtml(slide2.images)}
+    </article>
+
+    <article class="presentation-slide">
+      <h3>Slide 3 — Industry Overview</h3>
+      <p>${escapeHtml(slide3.input || '')}</p>
+      ${imageHtml(slide3.images)}
+    </article>
+
+    <article class="presentation-slide">
+      <h3>Slide 4 — Stock Analysis</h3>
+      <p>${escapeHtml(slide4.input || '')}</p>
+      ${metrics ? `<ul>${metrics}</ul>` : ''}
+      ${imageHtml(slide4.images)}
+    </article>
+
+    <article class="presentation-slide thesis-slide">
+      <h3>Slide 5 — Thesis</h3>
+      <p>${escapeHtml(slide5.input || '')}</p>
+      ${imageHtml(slide5.images)}
+    </article>
+
+    <article class="presentation-slide catalyst-split">
+      <h3>Slide 6 — Catalysts</h3>
+      <div class="split upside"><h4>Upside</h4><p>${escapeHtml(slide6.input || '')}</p></div>
+      <div class="split risks"><h4>Risks</h4><p>${escapeHtml(slide6.input || '')}</p></div>
+      ${imageHtml(slide6.images)}
+    </article>
+
+    <article class="presentation-slide">
+      <h3>Slide 7 — Conclusion</h3>
+      <p><strong>Recommendation:</strong> ${escapeHtml(slide7.extras?.recommendation || 'Watch')}</p>
+      <p><strong>Confidence:</strong> ${escapeHtml(slide7.extras?.confidence || '5')} / 10</p>
+      <p><strong>Time horizon:</strong> ${escapeHtml(slide7.extras?.horizon || 'medium')}</p>
+      <p>${escapeHtml(slide7.input || '')}</p>
+      ${imageHtml(slide7.images)}
+    </article>
+  `;
 }
 
 function renderGroupHub(space, role) {
@@ -414,6 +541,7 @@ prevSlideBtn?.addEventListener('click', () => {
     renderSlide();
   }
 });
+
 nextSlideBtn?.addEventListener('click', () => {
   if (currentSlideIndex < HUB_SLIDES.length - 1) {
     currentSlideIndex += 1;
@@ -428,11 +556,33 @@ toggleShortcutsBtn?.addEventListener('click', () => {
     : 'Hide research shortcuts';
 });
 
+slideImageUpload?.addEventListener('change', async () => {
+  if (!slideImageUpload.files?.length) {
+    pendingSlideImages = null;
+    return;
+  }
+
+  const files = [...slideImageUpload.files];
+  if (files.length > 3) {
+    slideImageUpload.setCustomValidity('Please upload between 1 and 3 images.');
+    slideImageUpload.reportValidity();
+    return;
+  }
+
+  slideImageUpload.setCustomValidity('');
+  pendingSlideImages = await readFilesAsDataUrls(files);
+  renderImagePreview(pendingSlideImages);
+});
+
 saveSlideBtn?.addEventListener('click', () => {
   if (!activeSession || activeSession.submittedAt) return;
   const slide = HUB_SLIDES[currentSlideIndex];
-  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {} };
+  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
+
   response.input = slideInput.value.trim();
+  if (pendingSlideImages?.length) {
+    response.images = pendingSlideImages.slice(0, 3);
+  }
 
   if (slide.extra === 'metrics') {
     const metricInputs = [...slideExtraFields.querySelectorAll('[data-metric-index]')].map((input) => input.value.trim());
@@ -446,6 +596,7 @@ saveSlideBtn?.addEventListener('click', () => {
   }
 
   activeSession.slideResponses[slide.key] = response;
+  pendingSlideImages = null;
   saveDb();
   renderPitchHub();
 });
@@ -456,6 +607,17 @@ submitPitchBtn?.addEventListener('click', () => {
   if (completed < MIN_REQUIRED_SECTIONS) return;
   activeSession.submittedAt = new Date().toISOString();
   saveDb();
+  renderPitchHub();
+});
+
+viewPresentationBtn?.addEventListener('click', () => {
+  if (!activeSession?.submittedAt) return;
+  hideAllMainScreens();
+  presentationView.classList.remove('hidden');
+  renderPresentationDeck();
+});
+
+backToHubBtn?.addEventListener('click', () => {
   renderPitchHub();
 });
 
