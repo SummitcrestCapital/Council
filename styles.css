@@ -63,3 +63,13 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
 
 @media (max-width: 640px) { .hub-header { flex-direction: column; align-items: flex-start; gap: .5rem; } }
+
+
+.slide-shell { margin-top: 1rem; }
+.slide-nav { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin-bottom: .6rem; }
+.prompt-text { font-weight: 600; color: var(--navy-800); }
+.guidance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; }
+.guidance-grid h4, #slide-shortcuts h4 { margin: .6rem 0 .3rem; color: var(--navy-900); }
+#slide-helper, #slide-lookfor, #slide-shortcuts-list { margin: 0; padding-left: 1rem; }
+#slide-extra-fields { margin-top: .7rem; }
+select { border: 1px solid #ccbfa8; border-radius: 10px; padding: .55rem .6rem; font: inherit; background: #fcfaf5; color: var(--navy-900); width: 100%; }
