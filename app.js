@@ -127,62 +127,48 @@ function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) =>
 async function ensureProfileFromAuth(authUser, fullName = '') {
   const profilePayload = { id: authUser.id, email: authUser.email || '' };
   if (fullName) profilePayload.full_name = fullName;
-  const upsert = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }).select('*').maybeSingle();
-  if (!upsert.error && upsert.data) return upsert.data;
-
-  const selected = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
-  if (!selected.error && selected.data) return selected.data;
-
-  return {
-    id: authUser.id,
-    full_name: fullName || authUser.user_metadata?.full_name || '',
-    email: authUser.email || '',
-  };
+  const { data, error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }).select('*').single();
+  if (error) throw error;
+  return data;
 }
 
 async function getOrCreateIndividualSpace() {
-  const byType = await supabase.from('spaces').select('*').eq('type', 'individual').limit(1);
-  if (!byType.error && byType.data?.length) return byType.data[0];
-
-  const anySpace = await supabase.from('spaces').select('*').limit(1);
-  if (!anySpace.error && anySpace.data?.length) return anySpace.data[0];
-
-  const created = await supabase.from('spaces').insert({ type: 'individual', name: 'Individual' }).select('*').maybeSingle();
-  if (created.error || !created.data) throw created.error || new Error('Unable to initialize individual space.');
+  let { data: space, error } = await supabase.from('spaces').select('*').eq('slug', DEFAULT_INDIVIDUAL_SPACE_SLUG).maybeSingle();
+  if (error) throw error;
+  if (space) return space;
+  const insertPayload = { type: 'individual', name: 'Individual', slug: DEFAULT_INDIVIDUAL_SPACE_SLUG };
+  const created = await supabase.from('spaces').insert(insertPayload).select('*').single();
+  if (created.error) throw created.error;
   return created.data;
 }
 
 async function getCurrentCycle() {
-  const active = await supabase.from('cycles').select('*').eq('status', 'active').limit(1);
-  if (!active.error && active.data?.length) return active.data[0];
-
-  const recent = await supabase.from('cycles').select('*').order('created_at', { ascending: false }).limit(1);
-  if (!recent.error && recent.data?.length) return recent.data[0];
-
-  const created = await supabase.from('cycles').insert({ name: currentCycleName() }).select('*').maybeSingle();
-  if (created.error || !created.data) throw created.error || new Error('Unable to initialize cycle.');
+  const cycleName = currentCycleName();
+  let query = await supabase.from('cycles').select('*').eq('name', cycleName).maybeSingle();
+  if (query.error) throw query.error;
+  if (query.data) return query.data;
+  const deadline = cycleDeadline().toISOString();
+  const created = await supabase.from('cycles').insert({ name: cycleName, deadline_at: deadline, status: 'active' }).select('*').single();
+  if (created.error) throw created.error;
   return created.data;
 }
 
 async function ensureMembership(userId, spaceId) {
-  const existing = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
-  if (!existing.error && existing.data) return existing.data;
-
-  const created = await supabase.from('memberships').insert({ user_id: userId, space_id: spaceId, role: 'member' }).select('*').maybeSingle();
-  if (!created.error && created.data) return created.data;
-
-  const retry = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
-  if (retry.error) throw retry.error;
-  return retry.data;
+  let existing = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (existing.data) return existing.data;
+  const created = await supabase.from('memberships').insert({ user_id: userId, space_id: spaceId, role: 'member' }).select('*').single();
+  if (created.error) throw created.error;
+  return created.data;
 }
 
-function normalizeParticipantRecord(participant, fallbackCycleName = currentCycleName()) {
+function normalizeParticipantRecord(participant) {
   return {
     id: participant.id,
     userId: participant.user_id,
     cycleId: participant.cycle_id,
     spaceId: participant.space_id,
-    cycleName: participant.cycle_name || participant.cycles?.name || fallbackCycleName,
+    cycleName: participant.cycles?.name || currentCycleName(),
     sector: participant.sector || SECTORS[0],
     joinedCycle: Boolean(participant.joined_at),
     joinedAt: participant.joined_at || null,
@@ -218,22 +204,12 @@ async function savePitchSection(participantId, sectionKey, response) {
     extras: response.extras || {},
     images: response.images || [],
   };
-  const upsert = await supabase.from('pitch_sections').upsert(payload, { onConflict: 'cycle_participant_id,section_key' });
-  if (!upsert.error) return;
-
-  const existing = await supabase.from('pitch_sections').select('id').eq('cycle_participant_id', participantId).eq('section_key', sectionKey).maybeSingle();
-  if (existing.error) throw upsert.error;
-  if (existing.data?.id) {
-    const update = await supabase.from('pitch_sections').update(payload).eq('id', existing.data.id);
-    if (update.error) throw update.error;
-    return;
-  }
-  const insert = await supabase.from('pitch_sections').insert(payload);
-  if (insert.error) throw insert.error;
+  const { error } = await supabase.from('pitch_sections').upsert(payload, { onConflict: 'cycle_participant_id,section_key' });
+  if (error) throw error;
 }
 
 async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
-  const { data, error } = await supabase.from('cycle_participants').select('*').eq('user_id', userId).eq('cycle_id', cycleId).eq('space_id', spaceId).maybeSingle();
+  const { data, error } = await supabase.from('cycle_participants').select('*,cycles(name)').eq('user_id', userId).eq('cycle_id', cycleId).eq('space_id', spaceId).maybeSingle();
   if (error) throw error;
   if (data) return normalizeParticipantRecord(data);
 
@@ -245,13 +221,9 @@ async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
       sector: SECTORS[Math.floor(Math.random() * SECTORS.length)],
       status: 'in_progress',
     })
-    .select('*')
+    .select('*,cycles(name)')
     .single();
-  if (created.error) {
-    const retry = await supabase.from('cycle_participants').select('*').eq('user_id', userId).eq('cycle_id', cycleId).eq('space_id', spaceId).maybeSingle();
-    if (retry.error || !retry.data) throw created.error;
-    return normalizeParticipantRecord(retry.data);
-  }
+  if (created.error) throw created.error;
   return normalizeParticipantRecord(created.data);
 }
 
@@ -331,7 +303,6 @@ async function routeAuthenticatedUser() {
   await ensureMembership(currentUser.id, individualSpace.id);
   const activeCycle = await getCurrentCycle();
   activeSession = await getOrCreateCycleParticipant({ userId: currentUser.id, cycleId: activeCycle.id, spaceId: individualSpace.id });
-  activeSession.cycleName = activeCycle.name || activeCycle.cycle_name || activeCycle.title || currentCycleName();
   activeSession.slideResponses = await loadPitchSectionsForParticipant(activeSession.id);
   currentSlideIndex = 0;
 
@@ -521,10 +492,6 @@ signupForm?.addEventListener('submit', async (event) => {
     if (signIn.error) {
       const signUp = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
       if (signUp.error) throw signUp.error;
-      if (!signUp.data.session) {
-        alert('Account created. Check your email to confirm your account, then sign in.');
-        return;
-      }
     }
     const authUser = (await supabase.auth.getUser()).data.user;
     if (!authUser) throw new Error('Authentication failed. Please try again.');
