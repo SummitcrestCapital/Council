@@ -23,6 +23,7 @@ const presentationView = document.querySelector('#presentation-view');
 const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 const signupForm = document.querySelector('#signup-form');
+const loginBtn = document.querySelector('#login-btn');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
@@ -511,7 +512,7 @@ function renderClubDashboard() {
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
-signupForm.addEventListener('submit', async (event) => {
+signupForm && signupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const formData = new FormData(signupForm);
@@ -519,12 +520,25 @@ signupForm.addEventListener('submit', async (event) => {
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
 
-try {
-  const signUp = await supabaseClient.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: fullName } },
-  });
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+
+    if (error) throw error;
+
+    const authUser = data.user || (await supabaseClient.auth.getUser()).data.user;
+    if (!authUser) throw new Error('Account was created, but no user session was returned.');
+
+    await ensureProfileFromAuth(authUser, fullName);
+    await routeAuthenticatedUser();
+  } catch (error) {
+    console.error('SIGNUP ERROR:', error);
+    alert(error.message || 'Unable to create account right now.');
+  }
+});
 
   console.log('SIGNUP RESULT:', signUp);
 
@@ -545,6 +559,28 @@ try {
 } catch (error) {
     console.error(error);
     alert(error.message || 'Auth failed');
+  }
+});
+loginBtn && loginBtn.addEventListener('click', async () => {
+  const formData = new FormData(signupForm);
+  const email = String(formData.get('email') || '').trim();
+  const password = String(formData.get('password') || '');
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    const authUser = data.user || (await supabaseClient.auth.getUser()).data.user;
+    if (!authUser) throw new Error('Login succeeded, but no authenticated user was found.');
+
+    await routeAuthenticatedUser();
+  } catch (error) {
+    console.error('LOGIN ERROR:', error);
+    alert(error.message || 'Unable to sign in.');
   }
 });
 
