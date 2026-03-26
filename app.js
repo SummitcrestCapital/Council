@@ -117,11 +117,28 @@ function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) =>
 
 // ─── Supabase DB functions aligned to actual schema ───────────────────────────
 
+function slugifyUsername(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || `user_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 async function ensureProfileFromAuth(authUser, fullName) {
-  // profiles: id, username, full_name, onboarding_complete, created_at
-  const payload = { id: authUser.id };
-  if (fullName) payload.full_name = fullName;
-  const { data, error } = await supabaseClient.from('profiles').upsert(payload, { onConflict: 'id' }).select('*').single();
+  const emailName = (authUser.email || '').split('@')[0];
+
+  const payload = {
+    id: authUser.id,
+    username: slugifyUsername(fullName || emailName || authUser.id),
+    full_name: fullName || authUser.user_metadata?.full_name || null,
+  };
+
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .upsert(payload, { onConflict: 'id' })
+    .select('*')
+    .single();
+
   if (error) throw error;
   return data;
 }
