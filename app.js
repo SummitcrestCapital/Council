@@ -15,6 +15,7 @@ const HUB_SLIDES = [
 ];
 
 const signupScreen = document.querySelector('#signup-screen');
+const signupTitle = document.querySelector('#signup-title');
 const modeScreen = document.querySelector('#mode-screen');
 const cycleScreen = document.querySelector('#cycle-screen');
 const pitchHub = document.querySelector('#pitch-hub');
@@ -23,8 +24,9 @@ const presentationView = document.querySelector('#presentation-view');
 const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 const signupForm = document.querySelector('#signup-form');
-const createAccountBtn = document.querySelector('#create-account-btn');
-const signInBtn = document.querySelector('#sign-in-btn');
+const authModeLabel = document.querySelector('#auth-mode-label');
+const authSubmitBtn = document.querySelector('#auth-submit-btn');
+const authSwitchBtn = document.querySelector('#auth-switch-btn');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
@@ -108,6 +110,7 @@ let pendingClub = null;
 let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
+let authMode = 'signup';
 
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 const saveDb = () => {};
@@ -294,8 +297,8 @@ function showSupabaseUnavailable() {
   const message = 'Unable to load Supabase client. Check your internet connection and reload.';
   const panelText = signupScreen.querySelector('.panel-text');
   if (panelText) panelText.textContent = message;
-  createAccountBtn && (createAccountBtn.disabled = true);
-  signInBtn && (signInBtn.disabled = true);
+  const submitButton = signupForm?.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
 }
 
 async function routeAuthenticatedUser() {
@@ -485,30 +488,35 @@ function renderClubDashboard() {
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
-async function handleAuth(action) {
+setAuthMode('signup');
+
+signupForm && signupForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
   if (!supabaseClient) { showSupabaseUnavailable(); return; }
   const formData = new FormData(signupForm);
   const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
   try {
-    if (action === 'signin') {
+    if (authMode === 'signin') {
       const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
       if (signIn.error) throw signIn.error;
     } else {
-      if (!fullName) throw new Error('Please enter your full name to create an account.');
       const signUp = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
       if (signUp.error) {
         const message = String(signUp.error.message || '');
         const isAlreadyRegistered = /already registered|already exists|exists/i.test(message);
         if (!isAlreadyRegistered) throw signUp.error;
-        throw new Error('This email is already registered. Use "I already have an account" to sign in.');
+        const fallbackSignIn = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (fallbackSignIn.error) throw new Error('This email already exists. Switch to "Sign in" and use your existing password.');
       }
       if (signUp.data.user && !signUp.data.session) {
-        const immediateSignIn = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (immediateSignIn.error) {
-          throw new Error('Account was created but sign-in did not complete. Please use "I already have an account" and sign in.');
-        }
+        alert('Account created. Check your email for a confirmation link, then use Sign in.');
+        setAuthMode('signin');
+        return;
+      }
+      if (signUp.data.session) {
+        setAuthMode('signin');
       }
     }
     const authUser = (await supabaseClient.auth.getUser()).data.user;
@@ -516,13 +524,17 @@ async function handleAuth(action) {
     await ensureProfileFromAuth(authUser, fullName);
     await routeAuthenticatedUser();
   } catch (error) {
-    alert(error.message || (action === 'signin' ? 'Unable to sign in right now.' : 'Unable to create account right now.'));
+    alert(error.message || (authMode === 'signin' ? 'Unable to sign in right now.' : 'Unable to create account right now.'));
   }
 }
 
 signupForm && signupForm.addEventListener('submit', (event) => event.preventDefault());
 createAccountBtn && createAccountBtn.addEventListener('click', () => { void handleAuth('signup'); });
 signInBtn && signInBtn.addEventListener('click', () => { void handleAuth('signin'); });
+
+authSwitchBtn && authSwitchBtn.addEventListener('click', () => {
+  setAuthMode(authMode === 'signup' ? 'signin' : 'signup');
+});
 
 individualBtn && individualBtn.addEventListener('click', async () => {
   if (!currentUser || !currentUser.id) return;
