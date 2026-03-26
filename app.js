@@ -15,6 +15,7 @@ const HUB_SLIDES = [
 ];
 
 const signupScreen = document.querySelector('#signup-screen');
+const signupTitle = document.querySelector('#signup-title');
 const modeScreen = document.querySelector('#mode-screen');
 const cycleScreen = document.querySelector('#cycle-screen');
 const pitchHub = document.querySelector('#pitch-hub');
