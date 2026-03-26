@@ -194,6 +194,27 @@ async function createSupabaseAuthUser({ email, password, fullName }) {
   return data;
 }
 
+async function findSupabaseProfileByEmail(email) {
+  const supabaseClient = await getSupabaseClient();
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient.from('profiles').select('id, full_name, username').eq('username', email).limit(1).maybeSingle();
+    if (error) throw new Error(error.message || 'Unable to verify account.');
+    return data;
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,full_name,username&username=eq.${encodeURIComponent(email)}&limit=1`, {
+    method: 'GET',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  const payload = await response.json().catch(() => []);
+  if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to verify account.');
+  return Array.isArray(payload) ? payload[0] : null;
+}
+
+
 function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
 
 function getOrCreateSession(userId) {
@@ -440,8 +461,43 @@ signupForm?.addEventListener('submit', async (event) => {
   currentUser = createUser({ fullName, email });
   signupScreen.classList.add('hidden');
   modeScreen.classList.remove('hidden');
-  if (signupStatus) signupStatus.textContent = '';
+if (signupStatus) signupStatus.textContent = '';
   if (submitBtn) submitBtn.disabled = false;
+});
+
+showLoginBtn?.addEventListener('click', () => {
+  signupScreen.classList.add('hidden');
+  loginScreen.classList.remove('hidden');
+  if (signupStatus) signupStatus.textContent = '';
+  if (loginStatus) loginStatus.textContent = '';
+});
+
+backToSignupBtn?.addEventListener('click', () => {
+  loginScreen.classList.add('hidden');
+  signupScreen.classList.remove('hidden');
+  if (loginStatus) loginStatus.textContent = '';
+});
+
+loginForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formData = new FormData(loginForm);
+  const email = String(formData.get('email') || '').trim().toLowerCase();
+  if (!email) return;
+  const submitBtn = loginForm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  if (loginStatus) loginStatus.textContent = 'Checking account...';
+  try {
+    const profile = await findSupabaseProfileByEmail(email);
+    if (!profile) throw new Error('No account found for that email.');
+    currentUser = db.users.find((u) => u.email === email) || createUser({ fullName: profile.full_name || email, email });
+    loginScreen.classList.add('hidden');
+    modeScreen.classList.remove('hidden');
+    if (loginStatus) loginStatus.textContent = '';
+  } catch (error) {
+    if (loginStatus) loginStatus.textContent = error.message || 'Unable to log in right now.';
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
 });
 
 individualBtn?.addEventListener('click', () => {
