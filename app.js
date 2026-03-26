@@ -93,8 +93,25 @@ const presentationPosition = document.querySelector('#presentation-position');
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
+const LOCAL_DB_KEY = 'summitcrest_local_state_v1';
 
-let db = { users: [], sessions: [], spaces: [] };
+function loadDb() {
+  try {
+    const raw = localStorage.getItem(LOCAL_DB_KEY);
+    if (!raw) return { users: [], sessions: [], spaces: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      users: Array.isArray(parsed.users) ? parsed.users : [],
+      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+      spaces: Array.isArray(parsed.spaces) ? parsed.spaces : [],
+    };
+  } catch (error) {
+    console.warn('Unable to load local state:', error);
+    return { users: [], sessions: [], spaces: [] };
+  }
+}
+
+let db = loadDb();
 let currentUser = null;
 let activeSession = null;
 let currentSlideIndex = 0;
@@ -104,9 +121,16 @@ let pendingClub = null;
 let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
+let isRoutingUser = false;
 
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-const saveDb = () => {};
+const saveDb = () => {
+  try {
+    localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(db));
+  } catch (error) {
+    console.warn('Unable to save local state:', error);
+  }
+};
 const generateJoinCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 const currentCycleName = () => new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 const cycleDeadline = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); };
