@@ -531,27 +531,7 @@ signupForm && signupForm.addEventListener('submit', async (event) => {
   }
 });
 
-  console.log('SIGNUP RESULT:', signUp);
-
-  if (signUp.error) throw signUp.error;
-
-  const { data } = await supabaseClient.auth.getUser();
-  const authUser = data.user;
-
-  console.log('AUTH USER AFTER SIGNUP:', authUser);
-
-  if (!authUser) throw new Error('Authentication failed.');
-
-  await ensureProfileFromAuth(authUser, fullName);
-
-  console.log('PROFILE CREATED SUCCESSFULLY');
-
-  await routeAuthenticatedUser();
-} catch (error) {
-    console.error(error);
-    alert(error.message || 'Auth failed');
-  }
-});
+  
 loginBtn && loginBtn.addEventListener('click', async () => {
   const formData = new FormData(signupForm);
   const email = String(formData.get('email') || '').trim();
@@ -630,7 +610,7 @@ clubGroupsList && clubGroupsList.addEventListener('click', (event) => {
     const group = activeClub.groups.find((g) => g.id === saveStockBtn.dataset.saveStock);
     const input = clubGroupsList.querySelector(`input[data-group-stock="${group.id}"]`);
     group.stockTicker = (input ? input.value.trim().toUpperCase() : '') || '';
-    save(); renderClubDashboard(); return;
+    saveDb(); renderClubDashboard(); return;
   }
   const openGroupBtn = event.target.closest('button[data-open-group]');
   if (openGroupBtn) {
@@ -654,7 +634,7 @@ joinCycleBtn && joinCycleBtn.addEventListener('click', async () => {
     if (currentContext === 'individual') {
       const { error } = await supabaseClient.from('cycle_participants').update({ joined_at: joinedAt, submission_status: 'in_progress' }).eq('id', activeSession.id);
       if (error) throw error;
-    } else save();
+    } else saveDb();
     renderCycleStep();
   } catch (error) { alert(error.message || 'Unable to join cycle.'); }
 });
@@ -675,7 +655,7 @@ confirmLockBtn && confirmLockBtn.addEventListener('click', async () => {
     if (currentContext === 'individual') {
       const { error } = await supabaseClient.from('cycle_participants').update({ ticker: activeSession.ticker, company_name: activeSession.ticker, ticker_locked: true }).eq('id', activeSession.id);
       if (error) throw error;
-    } else save();
+    } else saveDb();
     lockModal.classList.add('hidden');
     renderPitchHub();
   } catch (error) { alert(error.message || 'Unable to lock ticker.'); }
@@ -718,7 +698,7 @@ saveSlideBtn && saveSlideBtn.addEventListener('click', async () => {
   pendingSlideImages = null;
   try {
     if (currentContext === 'individual') await savePitchSection(activeSession.id, slide.key, response);
-    else save();
+    else saveDb();
     renderPitchHub();
   } catch (error) { alert(error.message || 'Unable to save section.'); }
 });
