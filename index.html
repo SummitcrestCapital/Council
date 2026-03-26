@@ -21,20 +21,17 @@
         <div class="brand-copy"><p class="eyebrow">Powered by Summitcrest</p><h1>Council</h1><p class="subtitle">Mock investment council experiences for modern learners.</p></div>
       </header>
 
-      <section id="signup-screen" class="panel" aria-labelledby="signup-title">
-        <h2 id="signup-title">Create your account</h2>
-        <p class="panel-text">Start your council journey in under a minute.</p>
-        <form id="signup-form" class="signup-form">
-          <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
-          <label>Email<input type="email" name="email" required autocomplete="email" /></label>
-          <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
-          <p id="auth-mode-label" class="panel-text">Creating a new account</p>
-          <div class="auth-actions">
-            <button id="auth-submit-btn" type="submit" class="primary-btn">Create account</button>
-            <button id="auth-switch-btn" type="button" class="secondary">I already have an account</button>
-          </div>
-        </form>
-      </section>
+<section id="signup-screen" class="panel" aria-labelledby="signup-title">
+  <h2 id="signup-title">Create your account</h2>
+  <p class="panel-text">Start your council journey in under a minute.</p>
+  <form id="signup-form" class="signup-form">
+    <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
+    <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+    <label>Password<input type="password" name="password" required minlength="8" autocomplete="current-password" /></label>
+    <button type="submit" class="primary-btn">Create account</button>
+    <button id="login-btn" type="button" class="secondary">I already have an account</button>
+  </form>
+</section>
 
       <section id="mode-screen" class="panel hidden">
         <h2>Choose your path</h2>
