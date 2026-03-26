@@ -308,7 +308,7 @@ function hideAllMainScreens() {
 // FIX: routeAuthenticatedUser now shows visible errors to the user instead of silently failing
 // and has a concurrency guard to prevent double-execution from onAuthStateChange + direct call
 async function routeAuthenticatedUser() {
-  if (isRouting) return;
+  if (isRouting) { console.log('BLOCKED BY isRouting'); return; }
   isRouting = true;
   try {
     const authUser = (await supabaseClient.auth.getUser()).data.user;
