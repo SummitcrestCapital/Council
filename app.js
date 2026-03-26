@@ -1,7 +1,7 @@
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
 const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg'
+const SUPABASE_ANON_KEY = 'sb_publishable_9vlBuHDWJJdBJ9NuDlTWmg_4X2mDwIY'; // ⚠️ Replace with your real JWT anon key from Supabase → Settings → API
 const DEFAULT_INDIVIDUAL_SPACE_SLUG = 'individual';
 
 const HUB_SLIDES = [
@@ -128,7 +128,7 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
 
 async function ensureProfileFromAuth(authUser, fullName = '') {
-  const profilePayload = { id: authUser.id, email: authUser.email || '' };
+  const profilePayload = { id: authUser.id };
   if (fullName) profilePayload.full_name = fullName;
   const { data, error } = await supabaseClient.from('profiles').upsert(profilePayload, { onConflict: 'id' }).select('*').single();
   if (error) throw error;
@@ -319,7 +319,7 @@ async function routeAuthenticatedUser() {
       return;
     }
     const profile = await ensureProfileFromAuth(authUser);
-    currentUser = { id: profile.id, fullName: profile.full_name || authUser.email || 'Member', email: profile.email || authUser.email || '' };
+    currentUser = { id: profile.id, fullName: profile.full_name || authUser.email || 'Member', email: authUser.email || '' };
     signupScreen.classList.add('hidden');
     modeScreen.classList.remove('hidden');
     setModeButtonActive('individual-btn');
