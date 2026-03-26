@@ -114,7 +114,7 @@ let presentationSlidesHtml = [];
 let presentationIndex = 0;
 
 // FIX: Prevent routeAuthenticatedUser from running concurrently (onAuthStateChange + bottom-of-file call)
-let isRouting = false;
+
 
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 const saveDb = () => {};
@@ -308,14 +308,14 @@ function hideAllMainScreens() {
 // FIX: routeAuthenticatedUser now shows visible errors to the user instead of silently failing
 // and has a concurrency guard to prevent double-execution from onAuthStateChange + direct call
 async function routeAuthenticatedUser() {
-  if (isRouting) { console.log('BLOCKED BY isRouting'); return; }
-  isRouting = true;
+  
+  
   try {
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) {
       signupScreen.classList.remove('hidden');
       hideAllMainScreens();
-      isRouting = false; // FIX: must reset here or the form submit handler will be permanently blocked
+      
       return;
     }
     const profile = await ensureProfileFromAuth(authUser);
@@ -346,8 +346,6 @@ async function routeAuthenticatedUser() {
     signupScreen.classList.remove('hidden');
     hideAllMainScreens();
     alert(`Sign-in error: ${error.message || 'Something went wrong. Check the console for details.'}`);
-  } finally {
-    isRouting = false;
   }
 }
 
