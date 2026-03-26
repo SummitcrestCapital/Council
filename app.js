@@ -315,6 +315,7 @@ async function routeAuthenticatedUser() {
     if (!authUser) {
       signupScreen.classList.remove('hidden');
       hideAllMainScreens();
+      isRouting = false; // FIX: must reset here or the form submit handler will be permanently blocked
       return;
     }
     const profile = await ensureProfileFromAuth(authUser);
