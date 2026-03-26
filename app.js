@@ -50,71 +50,7 @@ const clubGroupSector = document.querySelector('#club-group-sector');
 const clubGroupMembers = document.querySelector('#club-group-members');
 const createClubGroupBtn = document.querySelector('#create-club-group-btn');
 const clubGroupsList = document.querySelector('#club-groups-list');
-
-const cycleInfo = document.querySelector('#cycle-info');
-const joinCycleBtn = document.querySelector('#join-cycle-btn');
-const tickerStep = document.querySelector('#ticker-step');
-const tickerInput = document.querySelector('#ticker-input');
-const lockTickerBtn = document.querySelector('#lock-ticker-btn');
-const lockModal = document.querySelector('#lock-modal');
-const confirmLockBtn = document.querySelector('#confirm-lock-btn');
-const cancelLockBtn = document.querySelector('#cancel-lock-btn');
-
-const statusPill = document.querySelector('#status-pill');
-const hubCycle = document.querySelector('#hub-cycle');
-const hubSector = document.querySelector('#hub-sector');
-const hubCountdown = document.querySelector('#hub-countdown');
-const hubTicker = document.querySelector('#hub-ticker');
-const hubCompany = document.querySelector('#hub-company');
-const progressPercent = document.querySelector('#progress-percent');
-const progressList = document.querySelector('#progress-list');
-const submitPitchBtn = document.querySelector('#submit-pitch-btn');
-const viewPresentationBtn = document.querySelector('#view-presentation-btn');
-const submitNote = document.querySelector('#submit-note');
-const deadlineText = document.querySelector('#deadline-text');
-
-const prevSlideBtn = document.querySelector('#prev-slide-btn');
-const nextSlideBtn = document.querySelector('#next-slide-btn');
-const slidePosition = document.querySelector('#slide-position');
-const slideTitle = document.querySelector('#slide-title');
-const slidePrompt = document.querySelector('#slide-prompt');
-const slideHelper = document.querySelector('#slide-helper');
-const slideLookfor = document.querySelector('#slide-lookfor');
-const toggleShortcutsBtn = document.querySelector('#toggle-shortcuts-btn');
-const slideShortcuts = document.querySelector('#slide-shortcuts');
-const slideShortcutsList = document.querySelector('#slide-shortcuts-list');
-const slideInput = document.querySelector('#slide-input');
-const slideExtraFields = document.querySelector('#slide-extra-fields');
-const saveSlideBtn = document.querySelector('#save-slide-btn');
-const slideImageUpload = document.querySelector('#slide-image-upload');
-const slideImageHint = document.querySelector('#slide-image-hint');
-const slideImagePreview = document.querySelector('#slide-image-preview');
-
-const groupHubTitle = document.querySelector('#group-hub-title');
-const groupHubSubtitle = document.querySelector('#group-hub-subtitle');
-const groupHubCards = document.querySelector('#group-hub-cards');
-
-const presentationSlides = document.querySelector('#presentation-slides');
-const backToHubBtn = document.querySelector('#back-to-hub-btn');
-const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
-const presentationNextBtn = document.querySelector('#presentation-next-btn');
-const presentationPosition = document.querySelector('#presentation-position');
-
-let db = loadDb();
-let currentUser = null;
-let activeSession = null;
-let currentSlideIndex = 0;
-let pendingSlideImages = null;
-let activeClub = null;
-let pendingClub = null;
-let currentContext = 'individual';
-let presentationSlidesHtml = [];
-let presentationIndex = 0;
-
-function loadDb() {
-  const saved = localStorage.getItem(DB_KEY);
-  if (!saved) return { users: [], sessions: [], spaces: [] };
-  try {
+@@ -115,50 +118,105 @@ function loadDb() {
     const parsed = JSON.parse(saved);
     return {
       users: Array.isArray(parsed.users) ? parsed.users : [],
@@ -159,26 +95,40 @@ async function createSupabaseAuthUser({ email, password, fullName }) {
   return payload;
 }
 
-async function upsertSupabaseProfile({ email, fullName, password }) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify([{
-      email,
-      full_name: fullName,
-      onboarding_complete: false,
-      password,
-    }]),
-  });
-  if (!response.ok) {
+async function upsertSupabaseProfile({ authUserId, email, fullName, password, accessToken }) {
+  if (!authUserId) throw new Error('Unable to create profile: missing auth user id.');
+  const profilePayload = {
+    id: authUserId,
+    username: email,
+    full_name: fullName,
+    onboarding_complete: false,
+    password,
+  };
+  const missingColumnRegex = /Could not find the '([^']+)' column/i;
+  let attempts = 0;
+  while (attempts < 4) {
+    attempts += 1;
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([profilePayload]),
+    });
+    if (response.ok) return;
     const payload = await response.json().catch(() => ({}));
+    const message = String(payload?.message || payload?.hint || '');
+    const missingColumn = message.match(missingColumnRegex)?.[1];
+    if (missingColumn && Object.prototype.hasOwnProperty.call(profilePayload, missingColumn)) {
+      delete profilePayload[missingColumn];
+      continue;
+    }
     throw new Error(payload?.message || payload?.hint || 'Unable to write profile row.');
   }
+  throw new Error('Unable to write profile row: profile schema does not include required columns.');
 }
 
 function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
@@ -206,181 +156,7 @@ function getOrCreateClubGroupSession({ userId, clubId, groupId, role, sector, ti
     db.sessions.push(session); saveDb();
   }
   if (!session.slideResponses) session.slideResponses = emptySlideResponses();
-  return session;
-}
-
-function createClub(name, description, ownerId) {
-  const code = generateJoinCode();
-  const club = { id: makeId('space'), type: 'club', name, description, joinCode: code, ownerId, currentCycle: currentCycleName(), members: [{ userId: ownerId, displayName: currentUser.fullName, role: 'executive' }], groups: [], pitches: [], createdAt: new Date().toISOString() };
-  db.spaces.push(club); saveDb(); return club;
-}
-
-function joinClubByCode(code, userId, displayName) {
-  const normalized = code.trim().toUpperCase();
-  let club = db.spaces.find((space) => space.type === 'club' && space.joinCode === normalized);
-  if (!club) {
-    club = { id: makeId('space'), type: 'club', name: `Test Club ${normalized}`, description: 'Auto-created test club', joinCode: normalized || generateJoinCode(), ownerId: userId, currentCycle: currentCycleName(), members: [], groups: [], pitches: [], createdAt: new Date().toISOString() };
-    db.spaces.push(club);
-  }
-  pendingClub = { clubId: club.id, userId, displayName };
-  saveDb();
-  return club;
-}
-
-function addClubMemberRole(clubId, userId, displayName, role) {
-  const club = db.spaces.find((space) => space.id === clubId && space.type === 'club');
-  if (!club) return null;
-  const existing = club.members.find((m) => m.userId === userId);
-  if (existing) existing.role = role;
-  else club.members.push({ userId, displayName, role });
-  saveDb();
-  return club;
-}
-
-function hideAllMainScreens() {
-  modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
-}
-
-
-function setModeButtonActive(active) {
-  [individualBtn, clubBtn, classBtn].forEach((btn) => {
-    if (!btn) return;
-    if (btn.id === active) {
-      btn.classList.add('primary-btn');
-      btn.classList.remove('secondary');
-    } else {
-      btn.classList.remove('primary-btn');
-      btn.classList.add('secondary');
-    }
-  });
-}
-
-function renderCycleStep() {
-  cycleInfo.textContent = `${activeSession.cycleName} • Assigned sector: ${activeSession.sector}`;
-  joinCycleBtn.disabled = activeSession.joinedCycle;
-  joinCycleBtn.textContent = activeSession.joinedCycle ? 'Joined (locked)' : 'Join this cycle';
-  tickerStep.classList.toggle('hidden', !activeSession.joinedCycle);
-  tickerInput.value = activeSession.ticker;
-  tickerInput.disabled = activeSession.tickerLocked;
-  lockTickerBtn.disabled = activeSession.tickerLocked;
-  lockTickerBtn.textContent = activeSession.tickerLocked ? 'Ticker locked' : 'Lock in ticker';
-}
-
-function statusForSession(session) {
-  if (session.submittedAt) return 'Submitted';
-  const completed = HUB_SLIDES.filter((slide) => session.slideResponses[slide.key]?.input?.trim()).length;
-  return completed > 0 ? 'In progress' : 'Not started';
-}
-
-function renderImagePreview(images) { slideImagePreview.innerHTML = images.map((src) => `<img src="${src}" alt="Uploaded visual" class="preview-image" />`).join(''); }
-function readFilesAsDataUrls(files) { return Promise.all(files.map((f) => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error('Unable to read image.')); r.readAsDataURL(f); }))); }
-
-function renderSlide() {
-  const slide = HUB_SLIDES[currentSlideIndex];
-  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
-  slidePosition.textContent = `Section ${currentSlideIndex + 1} of ${HUB_SLIDES.length}`;
-  slideTitle.textContent = slide.title;
-  slidePrompt.textContent = `Prompt: ${slide.prompt}`;
-  slideHelper.innerHTML = slide.helper.map((item) => `<li>${item}</li>`).join('');
-  slideLookfor.innerHTML = slide.lookFor.map((item) => `<li>${item}</li>`).join('');
-  slideImageHint.textContent = `Visual hint: ${slide.imageHint}`;
-  slideShortcutsList.innerHTML = slide.shortcuts.length ? slide.shortcuts.map((item) => `<li>${item}</li>`).join('') : '<li>No shortcuts for this section.</li>';
-  slideInput.placeholder = slide.placeholder;
-  slideInput.value = response.input || '';
-  slideImageUpload.value = '';
-  pendingSlideImages = null;
-  renderImagePreview(response.images || []);
-
-  slideExtraFields.classList.add('hidden');
-  slideExtraFields.innerHTML = '';
-  if (slide.extra === 'metrics') {
-    const metrics = response.extras.metrics || ['', '', ''];
-    slideExtraFields.classList.remove('hidden');
-    slideExtraFields.innerHTML = `<h4>Optional: Add 2–3 metrics</h4><div class="mode-options"><input data-metric-index="0" placeholder="Metric 1" value="${escapeHtml(metrics[0] || '')}" /><input data-metric-index="1" placeholder="Metric 2" value="${escapeHtml(metrics[1] || '')}" /><input data-metric-index="2" placeholder="Metric 3" value="${escapeHtml(metrics[2] || '')}" /></div>`;
-  }
-  if (slide.extra === 'conclusion') {
-    const rec = response.extras.recommendation || 'Watch';
-    const horizon = response.extras.horizon || 'medium';
-    const confidence = response.extras.confidence || '5';
-    slideExtraFields.classList.remove('hidden');
-    slideExtraFields.innerHTML = `<h4>Decision details</h4><div class="mode-options"><label>Recommendation<select id="conclusion-rec"><option ${rec === 'Buy' ? 'selected' : ''}>Buy</option><option ${rec === 'Watch' ? 'selected' : ''}>Watch</option><option ${rec === 'Avoid' ? 'selected' : ''}>Avoid</option></select></label><label>Time horizon<select id="conclusion-horizon"><option value="short" ${horizon === 'short' ? 'selected' : ''}>Short</option><option value="medium" ${horizon === 'medium' ? 'selected' : ''}>Medium</option><option value="long" ${horizon === 'long' ? 'selected' : ''}>Long</option></select></label><label>Confidence (1–10)<input id="conclusion-confidence" type="number" min="1" max="10" value="${escapeHtml(confidence)}" /></label></div>`;
-  }
-  prevSlideBtn.disabled = currentSlideIndex === 0;
-  nextSlideBtn.disabled = currentSlideIndex === HUB_SLIDES.length - 1;
-}
-
-function renderProgress() {
-  const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
-  const percent = Math.round((completed / HUB_SLIDES.length) * 100);
-  progressPercent.textContent = `${percent}% complete`;
-  progressList.innerHTML = HUB_SLIDES.map((slide) => `<li>${activeSession.slideResponses[slide.key]?.input?.trim() ? '✅' : '⬜'} ${slide.title}</li>`).join('');
-
-  const canSubmit = completed >= MIN_REQUIRED_SECTIONS && !activeSession.submittedAt;
-  const isAnalystContext = currentContext === 'club_group' && activeSession.role === 'analyst';
-  submitPitchBtn.disabled = !canSubmit || isAnalystContext;
-  viewPresentationBtn.classList.toggle('hidden', !activeSession.submittedAt);
-  if (isAnalystContext) submitNote.textContent = 'Analysts can contribute, but only Portfolio Managers can submit.';
-  else submitNote.textContent = activeSession.submittedAt ? 'Pitch submitted. Everything is now locked. You can now view your completed presentation.' : canSubmit ? 'Ready to submit your pitch.' : `Complete all ${MIN_REQUIRED_SECTIONS} sections to submit.`;
-}
-
-function renderPitchHub() {
-  hideAllMainScreens();
-  pitchHub.classList.remove('hidden');
-  statusPill.textContent = statusForSession(activeSession);
-  hubCycle.textContent = `Cycle: ${activeSession.cycleName}`;
-  hubSector.textContent = `Sector: ${activeSession.sector}`;
-  hubCountdown.textContent = `${daysUntilDeadline()} day(s) left in cycle`;
-  hubTicker.textContent = `Ticker: ${activeSession.ticker}`;
-  hubCompany.textContent = `Company: ${activeSession.ticker || 'Not selected'} (name lookup coming soon)`;
-  deadlineText.textContent = `${daysUntilDeadline()} days left to submit.`;
-  renderProgress();
-  renderSlide();
-}
-
-function renderPresentationDeck() {
-  const responses = activeSession.slideResponses;
-  const imageHtml = (images) => images?.length ? `<div class="presentation-images">${images.map((src) => `<img src="${src}" alt="Slide visual"/>`).join('')}</div>` : '';
-  const s1 = responses.executive_summary || {}, s2 = responses.company_overview || {}, s3 = responses.industry_overview || {}, s4 = responses.stock_analysis || {}, s5 = responses.thesis || {}, s6 = responses.catalysts || {}, s7 = responses.conclusion || {};
-  const bullets = (s1.input || '').split('\n').filter(Boolean).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
-  const metrics = (s4.extras?.metrics || []).filter(Boolean).map((m) => `<li>${escapeHtml(m)}</li>`).join('');
-
-  presentationSlidesHtml = [
-    `<article class="presentation-slide full-slide"><h3>Executive Summary</h3><p class="recommendation-text">${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><ul>${bullets || `<li>${escapeHtml(s1.input || '')}</li>`}</ul>${imageHtml(s1.images)}</article>`,
-    `<article class="presentation-slide full-slide two-col"><h3>Company Overview</h3><div><p>${escapeHtml(s2.input || '')}</p></div><div><p><strong>What they do</strong></p><p><strong>Revenue model</strong></p><p><strong>Key segments</strong></p></div>${imageHtml(s2.images)}</article>`,
-    `<article class="presentation-slide full-slide"><h3>Industry Overview</h3><p>${escapeHtml(s3.input || '')}</p>${imageHtml(s3.images)}</article>`,
-    `<article class="presentation-slide full-slide"><h3>Stock Analysis</h3><p>${escapeHtml(s4.input || '')}</p>${metrics ? `<ul>${metrics}</ul>` : ''}${imageHtml(s4.images)}</article>`,
-    `<article class="presentation-slide full-slide thesis-slide"><h3>Thesis</h3><p>${escapeHtml(s5.input || '')}</p>${imageHtml(s5.images)}</article>`,
-    `<article class="presentation-slide full-slide catalyst-split"><h3>Catalysts</h3><div class="split upside"><h4>Upside</h4><p>${escapeHtml(s6.input || '')}</p></div><div class="split risks"><h4>Risks</h4><p>${escapeHtml(s6.input || '')}</p></div>${imageHtml(s6.images)}</article>`,
-    `<article class="presentation-slide full-slide"><h3>Conclusion</h3><p><strong>Recommendation:</strong> ${escapeHtml(s7.extras?.recommendation || 'Watch')}</p><p><strong>Confidence:</strong> ${escapeHtml(s7.extras?.confidence || '5')} / 10</p><p><strong>Time horizon:</strong> ${escapeHtml(s7.extras?.horizon || 'medium')}</p><p>${escapeHtml(s7.input || '')}</p>${imageHtml(s7.images)}</article>`,
-  ];
-
-  presentationIndex = 0;
-  renderPresentationPage();
-}
-
-function renderPresentationPage() {
-  if (!presentationSlidesHtml.length) return;
-  presentationSlides.innerHTML = presentationSlidesHtml[presentationIndex];
-  presentationPosition.textContent = `Slide ${presentationIndex + 1} of ${presentationSlidesHtml.length}`;
-  presentationPrevBtn.disabled = presentationIndex === 0;
-  presentationNextBtn.disabled = presentationIndex === presentationSlidesHtml.length - 1;
-}
-
-function renderClassPlaceholder() {
-  hideAllMainScreens();
-  groupHub.classList.remove('hidden');
-  groupHubTitle.textContent = 'Class mode';
-  groupHubSubtitle.textContent = 'Class mode remains unchanged in this iteration.';
-  groupHubCards.innerHTML = '<article class="dash-card"><h3>Coming soon</h3><p>Class workflows are unchanged for now.</p></article>';
-}
-
-function renderClubDashboard() {
-  if (!activeClub) return;
-  hideAllMainScreens();
-  clubDashboard.classList.remove('hidden');
-
-  const currentMember = activeClub.members.find((m) => m.userId === currentUser.id);
-  clubName.textContent = activeClub.name;
+@@ -340,56 +398,80 @@ function renderClubDashboard() {
   clubRoleLine.textContent = `Your role: ${currentMember?.role || 'member'}`;
   clubCycle.textContent = activeClub.currentCycle;
   clubMembers.innerHTML = activeClub.members.map((m) => `<li>${escapeHtml(m.displayName || m.userId)} — ${m.role}</li>`).join('');
@@ -405,11 +181,11 @@ function renderClubDashboard() {
   }).join('') || '<p>No groups yet.</p>';
 }
 
-// Events
 signupForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(signupForm);
-  const fullName = String(formData.get('fullName') || '').trim();
+
+const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim().toLowerCase();
   const password = String(formData.get('password') || '');
   if (!fullName || !email || !password) return;
@@ -417,8 +193,14 @@ signupForm?.addEventListener('submit', async (event) => {
   if (submitBtn) submitBtn.disabled = true;
   if (signupStatus) signupStatus.textContent = 'Creating your account...';
   try {
-    await createSupabaseAuthUser({ email, password, fullName });
-    await upsertSupabaseProfile({ email, fullName, password });
+    const authPayload = await createSupabaseAuthUser({ email, password, fullName });
+    await upsertSupabaseProfile({
+      authUserId: authPayload?.user?.id,
+      email,
+      fullName,
+      password,
+      accessToken: authPayload?.session?.access_token,
+    });
   } catch (error) {
     if (signupStatus) signupStatus.textContent = error.message || 'Unable to create account right now.';
     if (submitBtn) submitBtn.disabled = false;
@@ -454,154 +236,3 @@ clubBtn?.addEventListener('click', () => {
 });
 
 classBtn?.addEventListener('click', () => { setModeButtonActive('class-btn'); renderClassPlaceholder(); });
-
-groupActions?.addEventListener('submit', (event) => {
-  event.preventDefault();
-  if (!currentUser?.id || !groupSpaceName.value.trim()) return;
-  activeClub = createClub(groupSpaceName.value.trim(), groupDescription.value.trim(), currentUser.id);
-  pendingClub = null;
-  renderClubDashboard();
-});
-
-joinGroupBtn?.addEventListener('click', () => {
-  if (!currentUser?.id || !groupJoinCode.value.trim()) return;
-  activeClub = joinClubByCode(groupJoinCode.value, currentUser.id, currentUser.fullName);
-  hideAllMainScreens();
-  clubRoleScreen.classList.remove('hidden');
-});
-
-pickPmBtn?.addEventListener('click', () => {
-  if (!activeClub || !currentUser?.id) return;
-  activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, 'portfolio_manager');
-  renderClubDashboard();
-});
-
-pickAnalystBtn?.addEventListener('click', () => {
-  if (!activeClub || !currentUser?.id) return;
-  activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, 'analyst');
-  renderClubDashboard();
-});
-
-createClubGroupBtn?.addEventListener('click', () => {
-  if (!activeClub || !clubGroupName.value.trim()) return;
-  const memberNames = clubGroupMembers.value.split(',').map((x) => x.trim()).filter(Boolean);
-  activeClub.groups.push({ id: makeId('group'), name: clubGroupName.value.trim(), sector: clubGroupSector.value, memberNames, stockTicker: '', submittedBy: null });
-  saveDb();
-  renderClubDashboard();
-});
-
-clubGroupsList?.addEventListener('click', (event) => {
-  const saveStockBtn = event.target.closest('button[data-save-stock]');
-  if (saveStockBtn) {
-    const group = activeClub.groups.find((g) => g.id === saveStockBtn.dataset.saveStock);
-    const input = clubGroupsList.querySelector(`input[data-group-stock="${group.id}"]`);
-    group.stockTicker = input?.value.trim().toUpperCase() || '';
-    saveDb();
-    renderClubDashboard();
-    return;
-  }
-
-  const openGroupBtn = event.target.closest('button[data-open-group]');
-  if (openGroupBtn) {
-    const group = activeClub.groups.find((g) => g.id === openGroupBtn.dataset.openGroup);
-    if (!group) return;
-    const member = activeClub.members.find((m) => m.userId === currentUser.id);
-    currentContext = 'club_group';
-    activeSession = getOrCreateClubGroupSession({ userId: currentUser.id, clubId: activeClub.id, groupId: group.id, role: member?.role || 'analyst', sector: group.sector, ticker: group.stockTicker });
-    activeSession.ticker = group.stockTicker;
-    activeSession.tickerLocked = Boolean(group.stockTicker);
-    renderPitchHub();
-  }
-});
-
-joinCycleBtn?.addEventListener('click', () => {
-  if (!activeSession || activeSession.joinedCycle) return;
-  activeSession.joinedCycle = true;
-  activeSession.joinedAt = new Date().toISOString();
-  saveDb();
-  renderCycleStep();
-});
-
-lockTickerBtn?.addEventListener('click', () => {
-  if (!activeSession?.joinedCycle || activeSession.tickerLocked) return;
-  const ticker = tickerInput.value.trim().toUpperCase();
-  if (!/^[A-Z]{1,8}$/.test(ticker)) { tickerInput.setCustomValidity('Enter a valid stock ticker (letters only, max 8).'); tickerInput.reportValidity(); return; }
-  tickerInput.setCustomValidity('');
-  activeSession.ticker = ticker;
-  lockModal.classList.remove('hidden');
-});
-
-confirmLockBtn?.addEventListener('click', () => {
-  if (!activeSession?.ticker) return;
-  activeSession.tickerLocked = true;
-  saveDb();
-  lockModal.classList.add('hidden');
-  renderPitchHub();
-});
-cancelLockBtn?.addEventListener('click', () => lockModal.classList.add('hidden'));
-
-prevSlideBtn?.addEventListener('click', () => { if (currentSlideIndex > 0) { currentSlideIndex -= 1; renderSlide(); } });
-nextSlideBtn?.addEventListener('click', () => { if (currentSlideIndex < HUB_SLIDES.length - 1) { currentSlideIndex += 1; renderSlide(); } });
-
-toggleShortcutsBtn?.addEventListener('click', () => {
-  slideShortcuts.classList.toggle('hidden');
-  toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden') ? 'Show research shortcuts' : 'Hide research shortcuts';
-});
-
-slideImageUpload?.addEventListener('change', async () => {
-  if (!slideImageUpload.files?.length) { pendingSlideImages = null; return; }
-  const files = [...slideImageUpload.files];
-  if (files.length > 3) { slideImageUpload.setCustomValidity('Please upload between 1 and 3 images.'); slideImageUpload.reportValidity(); return; }
-  slideImageUpload.setCustomValidity('');
-  pendingSlideImages = await readFilesAsDataUrls(files);
-  renderImagePreview(pendingSlideImages);
-});
-
-saveSlideBtn?.addEventListener('click', () => {
-  if (!activeSession || activeSession.submittedAt) return;
-  const slide = HUB_SLIDES[currentSlideIndex];
-  const response = activeSession.slideResponses[slide.key] || { input: '', extras: {}, images: [] };
-  response.input = slideInput.value.trim();
-  if (pendingSlideImages?.length) response.images = pendingSlideImages.slice(0, 3);
-
-  if (slide.extra === 'metrics') response.extras.metrics = [...slideExtraFields.querySelectorAll('[data-metric-index]')].map((input) => input.value.trim());
-  if (slide.extra === 'conclusion') {
-    response.extras.recommendation = slideExtraFields.querySelector('#conclusion-rec')?.value || 'Watch';
-    response.extras.horizon = slideExtraFields.querySelector('#conclusion-horizon')?.value || 'medium';
-    response.extras.confidence = slideExtraFields.querySelector('#conclusion-confidence')?.value || '5';
-  }
-
-  activeSession.slideResponses[slide.key] = response;
-  pendingSlideImages = null;
-  saveDb();
-  renderPitchHub();
-});
-
-submitPitchBtn?.addEventListener('click', () => {
-  if (!activeSession || activeSession.submittedAt) return;
-  const completed = HUB_SLIDES.filter((slide) => activeSession.slideResponses[slide.key]?.input?.trim()).length;
-  if (completed < MIN_REQUIRED_SECTIONS) return;
-  activeSession.submittedAt = new Date().toISOString();
-
-  if (currentContext === 'club_group' && activeSession.role === 'portfolio_manager') {
-    const group = activeClub.groups.find((g) => g.id === activeSession.groupId);
-    if (group) {
-      activeClub.pitches.push({ groupId: group.id, groupName: group.name, ticker: activeSession.ticker, userName: currentUser.fullName, submittedAt: activeSession.submittedAt });
-      saveDb();
-    }
-  }
-
-  saveDb();
-  renderPitchHub();
-});
-
-viewPresentationBtn?.addEventListener('click', () => {
-  if (!activeSession?.submittedAt) return;
-  hideAllMainScreens();
-  presentationView.classList.remove('hidden');
-  renderPresentationDeck();
-});
-
-backToHubBtn?.addEventListener('click', () => renderPitchHub());
-presentationPrevBtn?.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
-presentationNextBtn?.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
