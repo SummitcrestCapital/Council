@@ -521,16 +521,16 @@ signupForm && signupForm.addEventListener('submit', async (event) => {
     if (error) throw error;
 
     const authUser = data.user || (await supabaseClient.auth.getUser()).data.user;
-    if (!authUser) throw new Error('Account was created, but no user session was returned.');
+    if (!authUser) throw new Error('Account was created but no user returned');
 
     await ensureProfileFromAuth(authUser, fullName);
     await routeAuthenticatedUser();
+
   } catch (error) {
     console.error('SIGNUP ERROR:', error);
-    alert(error.message || 'Unable to create account right now.');
+    alert(error.message || 'Unable to create account');
   }
 });
-
   
 loginBtn && loginBtn.addEventListener('click', async () => {
   const formData = new FormData(signupForm);
