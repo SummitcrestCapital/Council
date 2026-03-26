@@ -292,18 +292,6 @@ function hideAllMainScreens() {
   clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
-function setAuthMode(mode) {
-  authMode = mode === 'signin' ? 'signin' : 'signup';
-  const fullNameInput = signupForm?.querySelector('input[name="fullName"]');
-  if (fullNameInput) {
-    fullNameInput.required = authMode === 'signup';
-    fullNameInput.disabled = authMode === 'signin';
-  }
-  if (authModeLabel) authModeLabel.textContent = authMode === 'signup' ? 'Creating a new account' : 'Signing in to an existing account';
-  if (authSubmitBtn) authSubmitBtn.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
-  if (authSwitchBtn) authSwitchBtn.textContent = authMode === 'signup' ? 'I already have an account' : 'I need to create an account';
-}
-
 function showSupabaseUnavailable() {
   const message = 'Unable to load Supabase client. Check your internet connection and reload.';
   const panelText = signupScreen.querySelector('.panel-text');
