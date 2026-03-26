@@ -35,7 +35,6 @@ label { display: grid; gap: .4rem; font-size: .92rem; font-weight: 600; color: v
 input, textarea, select { border: 1px solid #ccbfa8; border-radius: 10px; padding: .7rem .75rem; font: inherit; background: #fcfaf5; color: var(--navy-900); width: 100%; }
 
 .signup-form, .flow-block { display: grid; gap: .8rem; }
-.auth-actions { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .mode-options { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end; }
 .hidden { display: none; }
 
