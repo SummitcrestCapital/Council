@@ -139,29 +139,72 @@ function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
   db.users.push(user); saveDb(); return user;
 }
-const fullName = String(formData.get('fullName') || '').trim();
-  const email = String(formData.get('email') || '').trim().toLowerCase();
-  const password = String(formData.get('password') || '');
-  if (!fullName || !email || !password) return;
-  const submitBtn = signupForm.querySelector('button[type="submit"]');
-  if (submitBtn) submitBtn.disabled = true;
-  if (signupStatus) signupStatus.textContent = 'Creating your account...';
-  try {
-    const authPayload = await createSupabaseAuthUser({ email, password, fullName });
-    await upsertSupabaseProfile({
-      authUserId: authPayload?.user?.id,
-      username: email,
-      fullName,
-      password,
-      accessToken: authPayload?.session?.access_token,
-    });
-  } catch (error) {
-    if (signupStatus) signupStatus.textContent = error.message || 'Unable to create account right now.';
-    if (submitBtn) submitBtn.disabled = false;
-    return;
-  }
 
-  currentUser = createUser({ fullName, email });function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
+async function createSupabaseAuthUser({ email, password, fullName }) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      data: { full_name: fullName },
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload?.msg || payload?.error_description || payload?.error || 'Unable to create auth account.');
+  return payload;
+}
+
+function getAuthUserId(authPayload) {
+  return authPayload?.user?.id || authPayload?.id || authPayload?.data?.user?.id || null;
+}
+
+function getAuthAccessToken(authPayload) {
+  return authPayload?.session?.access_token || authPayload?.access_token || authPayload?.data?.session?.access_token || null;
+}
+
+async function upsertSupabaseProfile({ authUserId, username, fullName, password, accessToken }) {
+  if (!authUserId) throw new Error('Unable to create profile: missing auth user id.');
+  const profilePayload = {
+    id: authUserId,
+    username,
+    full_name: fullName,
+    onboarding_complete: false,
+    password,
+  };
+  const missingColumnRegex = /Could not find the '([^']+)' column/i;
+  let attempts = 0;
+  while (attempts < 4) {
+    attempts += 1;
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([profilePayload]),
+    });
+    if (response.ok) return;
+    const payload = await response.json().catch(() => ({}));
+    const message = String(payload?.message || payload?.hint || '');
+    const missingColumn = message.match(missingColumnRegex)?.[1];
+    if (missingColumn && Object.prototype.hasOwnProperty.call(profilePayload, missingColumn)) {
+      delete profilePayload[missingColumn];
+      continue;
+    }
+    throw new Error(payload?.message || payload?.hint || 'Unable to write profile row.');
+  }
+  throw new Error('Unable to write profile row: profile schema does not include required columns.');
+}
+
+
+function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
 
 function getOrCreateSession(userId) {
   const cycleName = currentCycleName();
