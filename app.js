@@ -148,17 +148,34 @@ async function getSupabaseClient() {
     return cachedSupabaseClient;
   }
 
-  try {
-    const module = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
-    cachedSupabaseClient = module.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    return cachedSupabaseClient;
-  } catch {
-    throw new Error('Supabase SDK failed to load. Check network/CDN access and try again.');
-  }
+  return null;
+}
+
+async function createSupabaseAuthUserViaRest({ email, password, fullName }) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      data: {
+        username: email,
+        full_name: fullName,
+      },
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.msg || payload?.error_description || payload?.error || 'Unable to create auth account.');
+  return payload;
 }
 
 async function createSupabaseAuthUser({ email, password, fullName }) {
   const supabaseClient = await getSupabaseClient();
+  if (!supabaseClient) return createSupabaseAuthUserViaRest({ email, password, fullName });
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
