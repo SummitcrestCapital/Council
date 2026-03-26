@@ -1,7 +1,8 @@
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
 const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg'; 
+const SUPABASE_ANON_KEY = 'sb_publishable_9vlBuHDWJJdBJ9NuDlTWmg_4X2mDwIY'; // ⚠️ Replace with your real JWT anon key from Supabase → Settings → API
+const DEFAULT_INDIVIDUAL_SPACE_SLUG = 'individual';
 
 const HUB_SLIDES = [
   { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
@@ -520,16 +521,35 @@ signupForm?.addEventListener('submit', async (event) => {
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
   try {
+    console.log('STEP 1: Attempting sign in...');
     const signIn = await supabase.auth.signInWithPassword({ email, password });
+    console.log('STEP 1 result:', JSON.stringify({ error: signIn.error, hasSession: !!signIn.data?.session, hasUser: !!signIn.data?.user }));
+
     if (signIn.error) {
+      console.log('STEP 2: Sign in failed, attempting sign up...');
       const signUp = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+      console.log('STEP 2 result:', JSON.stringify({ error: signUp.error, hasSession: !!signUp.data?.session, hasUser: !!signUp.data?.user }));
       if (signUp.error) throw signUp.error;
+      if (signUp.data?.user && !signUp.data?.session) {
+        alert('Almost there! Check your email and click the confirmation link, then come back and sign in.');
+        return;
+      }
     }
+
+    console.log('STEP 3: Getting current user...');
     const authUser = (await supabase.auth.getUser()).data.user;
+    console.log('STEP 3 result:', JSON.stringify({ hasUser: !!authUser, id: authUser?.id, email: authUser?.email }));
     if (!authUser) throw new Error('Authentication failed. Please try again.');
+
+    console.log('STEP 4: Ensuring profile...');
     await ensureProfileFromAuth(authUser, fullName);
+
+    console.log('STEP 5: Routing authenticated user...');
     await routeAuthenticatedUser();
+
+    console.log('STEP 5 complete');
   } catch (error) {
+    console.error('AUTH ERROR:', error);
     alert(error.message || 'Unable to authenticate right now.');
   }
 });
