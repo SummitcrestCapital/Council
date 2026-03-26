@@ -30,7 +30,19 @@
           <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
           <button type="submit" class="primary-btn">Create account</button>
         </form>
+                <button id="show-login-btn" class="secondary" type="button">I already have an account</button>
         <p id="signup-status" class="panel-text" aria-live="polite"></p>
+      </section>
+
+      <section id="login-screen" class="panel hidden" aria-labelledby="login-title">
+        <h2 id="login-title">Log in</h2>
+        <p class="panel-text">Enter your email to continue.</p>
+        <form id="login-form" class="signup-form">
+          <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+          <button type="submit" class="primary-btn">Continue</button>
+        </form>
+        <button id="back-to-signup-btn" class="secondary" type="button">Back to create account</button>
+        <p id="login-status" class="panel-text" aria-live="polite"></p>
       </section>
 
       <section id="mode-screen" class="panel hidden">
