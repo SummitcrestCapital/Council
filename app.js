@@ -293,20 +293,6 @@ function hideAllMainScreens() {
   clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
-function setAuthMode(mode) {
-  authMode = mode === 'signin' ? 'signin' : 'signup';
-  const fullNameInput = signupForm?.querySelector('input[name="fullName"]');
-  const fullNameField = fullNameInput?.closest('label');
-  if (fullNameInput) {
-    fullNameInput.required = authMode === 'signup';
-  }
-  if (fullNameField) fullNameField.classList.toggle('hidden', authMode === 'signin');
-  if (signupTitle) signupTitle.textContent = authMode === 'signup' ? 'Create your account' : 'Sign in';
-  if (authModeLabel) authModeLabel.textContent = authMode === 'signup' ? 'Creating a new account' : 'Signing in to an existing account';
-  if (authSubmitBtn) authSubmitBtn.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
-  if (authSwitchBtn) authSwitchBtn.textContent = authMode === 'signup' ? 'I already have an account' : 'I need to create an account';
-}
-
 function showSupabaseUnavailable() {
   const message = 'Unable to load Supabase client. Check your internet connection and reload.';
   const panelText = signupScreen.querySelector('.panel-text');
@@ -525,8 +511,12 @@ signupForm && signupForm.addEventListener('submit', async (event) => {
         if (fallbackSignIn.error) throw new Error('This email already exists. Switch to "Sign in" and use your existing password.');
       }
       if (signUp.data.user && !signUp.data.session) {
-        alert('Account created. Check your email for a confirmation link, then sign in.');
+        alert('Account created. Check your email for a confirmation link, then use Sign in.');
+        setAuthMode('signin');
         return;
+      }
+      if (signUp.data.session) {
+        setAuthMode('signin');
       }
     }
     const authUser = (await supabaseClient.auth.getUser()).data.user;
@@ -540,7 +530,6 @@ signupForm && signupForm.addEventListener('submit', async (event) => {
 
 authSwitchBtn && authSwitchBtn.addEventListener('click', () => {
   setAuthMode(authMode === 'signup' ? 'signin' : 'signup');
-  if (authMode === 'signin') alert('Switched to Sign in mode. Use your existing email and password.');
 });
 
 individualBtn && individualBtn.addEventListener('click', async () => {
