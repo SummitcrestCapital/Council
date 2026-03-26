@@ -138,13 +138,27 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
   db.users.push(user); saveDb(); return user;
-}function getSupabaseClient() {
-  if (!window.supabase?.createClient) throw new Error('Supabase SDK failed to load. Refresh and try again.');
-  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}let cachedSupabaseClient = null;
+
+async function getSupabaseClient() {
+  if (cachedSupabaseClient) return cachedSupabaseClient;
+
+  if (window.supabase?.createClient) {
+    cachedSupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return cachedSupabaseClient;
+  }
+
+  try {
+    const module = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+    cachedSupabaseClient = module.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return cachedSupabaseClient;
+  } catch {
+    throw new Error('Supabase SDK failed to load. Check network/CDN access and try again.');
+  }
 }
 
 async function createSupabaseAuthUser({ email, password, fullName }) {
-  const supabaseClient = getSupabaseClient();
+  const supabaseClient = await getSupabaseClient();
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
@@ -158,6 +172,7 @@ async function createSupabaseAuthUser({ email, password, fullName }) {
   if (error) throw new Error(error.message || 'Unable to create auth account.');
   return data;
 }
+
 function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
 
 function getOrCreateSession(userId) {
