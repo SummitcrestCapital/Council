@@ -15,7 +15,6 @@ const HUB_SLIDES = [
 ];
 
 const signupScreen = document.querySelector('#signup-screen');
-const signupTitle = document.querySelector('#signup-title');
 const modeScreen = document.querySelector('#mode-screen');
 const cycleScreen = document.querySelector('#cycle-screen');
 const pitchHub = document.querySelector('#pitch-hub');
@@ -24,9 +23,6 @@ const presentationView = document.querySelector('#presentation-view');
 const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 const signupForm = document.querySelector('#signup-form');
-const authModeLabel = document.querySelector('#auth-mode-label');
-const authSubmitBtn = document.querySelector('#auth-submit-btn');
-const authSwitchBtn = document.querySelector('#auth-switch-btn');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
@@ -94,11 +90,9 @@ const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
 
-const supabaseClient = window.supabase?.createClient
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-  })
-  : null;
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+});
 
 let db = { users: [], sessions: [], spaces: [] };
 let currentUser = null;
@@ -110,7 +104,6 @@ let pendingClub = null;
 let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
-let authMode = 'signup';
 
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 const saveDb = () => {};
@@ -293,21 +286,7 @@ function hideAllMainScreens() {
   clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
-function showSupabaseUnavailable() {
-  const message = 'Unable to load Supabase client. Check your internet connection and reload.';
-  const panelText = signupScreen.querySelector('.panel-text');
-  if (panelText) panelText.textContent = message;
-  const submitButton = signupForm?.querySelector('button[type="submit"]');
-  if (submitButton) submitButton.disabled = true;
-}
-
 async function routeAuthenticatedUser() {
-  if (!supabaseClient) {
-    showSupabaseUnavailable();
-    signupScreen.classList.remove('hidden');
-    hideAllMainScreens();
-    return;
-  }
   try {
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) {
@@ -488,52 +467,48 @@ function renderClubDashboard() {
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
-setAuthMode('signup');
-
-signupForm && signupForm.addEventListener('submit', async (event) => {
+signupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!supabaseClient) { showSupabaseUnavailable(); return; }
+
   const formData = new FormData(signupForm);
   const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
+
   try {
-    if (authMode === 'signin') {
-      const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (signIn.error) throw signIn.error;
-    } else {
-      const signUp = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
-      if (signUp.error) {
-        const message = String(signUp.error.message || '');
-        const isAlreadyRegistered = /already registered|already exists|exists/i.test(message);
-        if (!isAlreadyRegistered) throw signUp.error;
-        const fallbackSignIn = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (fallbackSignIn.error) throw new Error('This email already exists. Switch to "Sign in" and use your existing password.');
-      }
-      if (signUp.data.user && !signUp.data.session) {
-        alert('Account created. Check your email for a confirmation link, then use Sign in.');
-        setAuthMode('signin');
-        return;
-      }
-      if (signUp.data.session) {
-        setAuthMode('signin');
+    // Try sign in first
+    const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
+
+    if (signIn.error) {
+      // Only sign up if user doesn't exist
+      if (signIn.error.message.toLowerCase().includes('invalid login')) {
+        const signUp = await supabaseClient.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: fullName } },
+        });
+
+        if (signUp.error) throw signUp.error;
+
+        if (!signUp.data.session) {
+          alert('Check your email to confirm your account.');
+          return;
+        }
+      } else {
+        throw signIn.error;
       }
     }
-    const authUser = (await supabaseClient.auth.getUser()).data.user;
-    if (!authUser) throw new Error('Authentication failed. Please try again.');
-    await ensureProfileFromAuth(authUser, fullName);
+
+    const { data } = await supabaseClient.auth.getUser();
+    if (!data.user) throw new Error('Auth failed');
+
+    await ensureProfileFromAuth(data.user, fullName);
     await routeAuthenticatedUser();
+
   } catch (error) {
-    alert(error.message || (authMode === 'signin' ? 'Unable to sign in right now.' : 'Unable to create account right now.'));
+    console.error(error);
+    alert(error.message || 'Auth failed');
   }
-}
-
-signupForm && signupForm.addEventListener('submit', (event) => event.preventDefault());
-createAccountBtn && createAccountBtn.addEventListener('click', () => { void handleAuth('signup'); });
-signInBtn && signInBtn.addEventListener('click', () => { void handleAuth('signin'); });
-
-authSwitchBtn && authSwitchBtn.addEventListener('click', () => {
-  setAuthMode(authMode === 'signup' ? 'signin' : 'signup');
 });
 
 individualBtn && individualBtn.addEventListener('click', async () => {
@@ -591,7 +566,7 @@ clubGroupsList && clubGroupsList.addEventListener('click', (event) => {
     const group = activeClub.groups.find((g) => g.id === saveStockBtn.dataset.saveStock);
     const input = clubGroupsList.querySelector(`input[data-group-stock="${group.id}"]`);
     group.stockTicker = (input ? input.value.trim().toUpperCase() : '') || '';
-    saveDb(); renderClubDashboard(); return;
+    save(); renderClubDashboard(); return;
   }
   const openGroupBtn = event.target.closest('button[data-open-group]');
   if (openGroupBtn) {
@@ -615,7 +590,7 @@ joinCycleBtn && joinCycleBtn.addEventListener('click', async () => {
     if (currentContext === 'individual') {
       const { error } = await supabaseClient.from('cycle_participants').update({ joined_at: joinedAt, submission_status: 'in_progress' }).eq('id', activeSession.id);
       if (error) throw error;
-    } else saveDb();
+    } else save();
     renderCycleStep();
   } catch (error) { alert(error.message || 'Unable to join cycle.'); }
 });
@@ -636,7 +611,7 @@ confirmLockBtn && confirmLockBtn.addEventListener('click', async () => {
     if (currentContext === 'individual') {
       const { error } = await supabaseClient.from('cycle_participants').update({ ticker: activeSession.ticker, company_name: activeSession.ticker, ticker_locked: true }).eq('id', activeSession.id);
       if (error) throw error;
-    } else saveDb();
+    } else save();
     lockModal.classList.add('hidden');
     renderPitchHub();
   } catch (error) { alert(error.message || 'Unable to lock ticker.'); }
@@ -679,7 +654,7 @@ saveSlideBtn && saveSlideBtn.addEventListener('click', async () => {
   pendingSlideImages = null;
   try {
     if (currentContext === 'individual') await savePitchSection(activeSession.id, slide.key, response);
-    else saveDb();
+    else save();
     renderPitchHub();
   } catch (error) { alert(error.message || 'Unable to save section.'); }
 });
@@ -711,19 +686,12 @@ backToHubBtn && backToHubBtn.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn && presentationPrevBtn.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn && presentationNextBtn.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
 
-if (supabaseClient) {
-  supabaseClient.auth.onAuthStateChange(async (event) => {
-    if (event === 'SIGNED_OUT') {
-      currentUser = null; activeSession = null;
-      signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
-    }
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-      try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
-    }
-  });
-} else {
-  showSupabaseUnavailable();
-  console.error('Supabase client unavailable: CDN script failed to load.');
-  signupScreen.classList.remove('hidden');
-  hideAllMainScreens();
-}
+supabaseClient.auth.onAuthStateChange(async (event) => {
+  if (event === 'SIGNED_OUT') {
+    currentUser = null; activeSession = null;
+    signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
+  }
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+    try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
+  }
+});
