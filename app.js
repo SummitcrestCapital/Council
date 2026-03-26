@@ -15,6 +15,7 @@ const HUB_SLIDES = [
 ];
 
 const signupScreen = document.querySelector('#signup-screen');
+const signupTitle = document.querySelector('#signup-title');
 const modeScreen = document.querySelector('#mode-screen');
 const cycleScreen = document.querySelector('#cycle-screen');
 const pitchHub = document.querySelector('#pitch-hub');
@@ -23,6 +24,9 @@ const presentationView = document.querySelector('#presentation-view');
 const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 const signupForm = document.querySelector('#signup-form');
+const authModeLabel = document.querySelector('#auth-mode-label');
+const authSubmitBtn = document.querySelector('#auth-submit-btn');
+const authSwitchBtn = document.querySelector('#auth-switch-btn');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
@@ -90,9 +94,11 @@ const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-});
+const supabaseClient = window.supabase?.createClient
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  })
+  : null;
 
 let db = { users: [], sessions: [], spaces: [] };
 let currentUser = null;
@@ -104,6 +110,7 @@ let pendingClub = null;
 let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
+let authMode = 'signup';
 
 const makeId = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 const saveDb = () => {};
@@ -286,7 +293,35 @@ function hideAllMainScreens() {
   clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
+function setAuthMode(mode) {
+  authMode = mode === 'signin' ? 'signin' : 'signup';
+  const fullNameInput = signupForm?.querySelector('input[name="fullName"]');
+  const fullNameField = fullNameInput?.closest('label');
+  if (fullNameInput) {
+    fullNameInput.required = authMode === 'signup';
+  }
+  if (fullNameField) fullNameField.classList.toggle('hidden', authMode === 'signin');
+  if (signupTitle) signupTitle.textContent = authMode === 'signup' ? 'Create your account' : 'Sign in';
+  if (authModeLabel) authModeLabel.textContent = authMode === 'signup' ? 'Creating a new account' : 'Signing in to an existing account';
+  if (authSubmitBtn) authSubmitBtn.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+  if (authSwitchBtn) authSwitchBtn.textContent = authMode === 'signup' ? 'I already have an account' : 'I need to create an account';
+}
+
+function showSupabaseUnavailable() {
+  const message = 'Unable to load Supabase client. Check your internet connection and reload.';
+  const panelText = signupScreen.querySelector('.panel-text');
+  if (panelText) panelText.textContent = message;
+  const submitButton = signupForm?.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+}
+
 async function routeAuthenticatedUser() {
+  if (!supabaseClient) {
+    showSupabaseUnavailable();
+    signupScreen.classList.remove('hidden');
+    hideAllMainScreens();
+    return;
+  }
   try {
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) {
@@ -467,35 +502,52 @@ function renderClubDashboard() {
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
+setAuthMode('signup');
+
 signupForm && signupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!supabaseClient) { showSupabaseUnavailable(); return; }
   const formData = new FormData(signupForm);
   const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
   try {
-    console.log('STEP 1: Attempting sign in...');
-    const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
-    console.log('STEP 1 result:', JSON.stringify({ error: signIn.error ? signIn.error.message : null, hasSession: !!signIn.data.session }));
-    if (signIn.error) {
-      console.log('STEP 2: Sign in failed, attempting sign up...');
+    if (authMode === 'signin') {
+      const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (signIn.error) throw signIn.error;
+    } else {
       const signUp = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
-      console.log('STEP 2 result:', JSON.stringify({ error: signUp.error ? signUp.error.message : null, hasSession: !!signUp.data.session }));
-      if (signUp.error) throw signUp.error;
+      if (signUp.error) {
+        const message = String(signUp.error.message || '');
+        const isAlreadyRegistered = /already registered|already exists|exists/i.test(message);
+        if (!isAlreadyRegistered) throw signUp.error;
+        const fallbackSignIn = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (fallbackSignIn.error) throw new Error('This email already exists. Switch to "Sign in" and use your existing password.');
+      }
       if (signUp.data.user && !signUp.data.session) {
-        alert('Check your email and click the confirmation link, then come back to sign in.');
-        return;
+        const immediateSignIn = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (immediateSignIn.error) {
+          const signInMessage = String(immediateSignIn.error.message || '');
+          const needsConfirmation = /confirm|verification|verified|not confirmed/i.test(signInMessage);
+          if (needsConfirmation) {
+            throw new Error('Account created, but email verification is required before you can continue. Please verify your email, then sign in.');
+          }
+          throw immediateSignIn.error;
+        }
       }
     }
-    console.log('STEP 3: Getting current user...');
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) throw new Error('Authentication failed. Please try again.');
     await ensureProfileFromAuth(authUser, fullName);
     await routeAuthenticatedUser();
   } catch (error) {
-    console.error('AUTH ERROR:', error);
-    alert(error.message || 'Unable to authenticate right now.');
+    alert(error.message || (authMode === 'signin' ? 'Unable to sign in right now.' : 'Unable to create account right now.'));
   }
+});
+
+authSwitchBtn && authSwitchBtn.addEventListener('click', () => {
+  setAuthMode(authMode === 'signup' ? 'signin' : 'signup');
+  if (authMode === 'signin') alert('Switched to Sign in mode. Use your existing email and password.');
 });
 
 individualBtn && individualBtn.addEventListener('click', async () => {
@@ -673,12 +725,19 @@ backToHubBtn && backToHubBtn.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn && presentationPrevBtn.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn && presentationNextBtn.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
 
-supabaseClient.auth.onAuthStateChange(async (event) => {
-  if (event === 'SIGNED_OUT') {
-    currentUser = null; activeSession = null;
-    signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
-  }
-  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-    try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
-  }
-});
+if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange(async (event) => {
+    if (event === 'SIGNED_OUT') {
+      currentUser = null; activeSession = null;
+      signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
+    }
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+      try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
+    }
+  });
+} else {
+  showSupabaseUnavailable();
+  console.error('Supabase client unavailable: CDN script failed to load.');
+  signupScreen.classList.remove('hidden');
+  hideAllMainScreens();
+}
