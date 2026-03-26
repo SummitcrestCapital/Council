@@ -21,17 +21,16 @@
         <div class="brand-copy"><p class="eyebrow">Powered by Summitcrest</p><h1>Council</h1><p class="subtitle">Mock investment council experiences for modern learners.</p></div>
       </header>
 
-<section id="signup-screen" class="panel" aria-labelledby="signup-title">
-  <h2 id="signup-title">Create your account</h2>
-  <p class="panel-text">Start your council journey in under a minute.</p>
-  <form id="signup-form" class="signup-form">
-    <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
-    <label>Email<input type="email" name="email" required autocomplete="email" /></label>
-    <label>Password<input type="password" name="password" required minlength="8" autocomplete="current-password" /></label>
-    <button type="submit" class="primary-btn">Create account</button>
-    <button id="login-btn" type="button" class="secondary">I already have an account</button>
-  </form>
-</section>
+      <section id="signup-screen" class="panel" aria-labelledby="signup-title">
+        <h2 id="signup-title">Create your account</h2>
+        <p class="panel-text">Start your council journey in under a minute.</p>
+        <form id="signup-form" class="signup-form">
+          <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
+          <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+          <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
+          <button type="submit" class="primary-btn">Create account</button>
+        </form>
+      </section>
 
       <section id="mode-screen" class="panel hidden">
         <h2>Choose your path</h2>
@@ -148,7 +147,6 @@
       <div class="modal-card"><h3 id="lock-modal-title">Confirm your official pick</h3><p>This will be your official pick for this cycle. You won’t be able to change it after continuing.</p><div class="modal-actions"><button id="confirm-lock-btn" class="primary-btn" type="button">Confirm</button><button id="cancel-lock-btn" class="secondary" type="button">Go back</button></div></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
   </body>
 </html>
