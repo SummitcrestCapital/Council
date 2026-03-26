@@ -13,15 +13,6 @@ const HUB_SLIDES = [
   { key: 'catalysts', title: '6. Catalysts (Upside + Risks + Scenarios)', prompt: 'What events could drive this stock up or down?', helper: ['What could help this stock grow?', 'What could hurt it?', 'How likely are these outcomes?'], lookFor: ['Tailwinds: launches, expansion, growth.', 'Headwinds: competition, regulation, slowdown.', 'Scenario thinking: best/base/worst case.'], shortcuts: ['Google: "[company] outlook"', 'News: "[company] growth plans"', 'Google: "[company] risks"'], imageHint: 'Helpful visuals: catalyst timeline, scenario chart, upside-vs-risk visual split.', placeholder: 'Bullets split into Upside and Risks.' },
   { key: 'conclusion', title: '7. Conclusion', prompt: 'What is your final investment decision?', helper: ['Should someone buy this now?', 'Is this short-term or long-term?', 'How confident are you?'], lookFor: ['Clear recommendation.', 'Consistent with thesis.', 'Time horizon awareness.'], shortcuts: [], imageHint: 'Helpful visuals: simple price target view, risk/reward diagram, or final summary box.', placeholder: 'Final decision notes.', extra: 'conclusion' },
 ];
-
-const signupScreen = document.querySelector('#signup-screen');
-const modeScreen = document.querySelector('#mode-screen');
-const cycleScreen = document.querySelector('#cycle-screen');
-const pitchHub = document.querySelector('#pitch-hub');
-const groupHub = document.querySelector('#group-hub');
-const presentationView = document.querySelector('#presentation-view');
-const clubRoleScreen = document.querySelector('#club-role-screen');
-const clubDashboard = document.querySelector('#club-dashboard');
 const signupForm = document.querySelector('#signup-form');
 const loginBtn = document.querySelector('#login-btn');
 const individualBtn = document.querySelector('#individual-btn');
