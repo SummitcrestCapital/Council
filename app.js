@@ -3,7 +3,6 @@ const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer']
 const MIN_REQUIRED_SECTIONS = 7;
 const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const HUB_SLIDES = [
   { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
@@ -139,8 +138,13 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
   db.users.push(user); saveDb(); return user;
+}function getSupabaseClient() {
+  if (!window.supabase?.createClient) throw new Error('Supabase SDK failed to load. Refresh and try again.');
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
+
 async function createSupabaseAuthUser({ email, password, fullName }) {
+  const supabaseClient = getSupabaseClient();
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
@@ -154,8 +158,6 @@ async function createSupabaseAuthUser({ email, password, fullName }) {
   if (error) throw new Error(error.message || 'Unable to create auth account.');
   return data;
 }
-
-
 function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
 
 function getOrCreateSession(userId) {
