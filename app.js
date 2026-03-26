@@ -3,6 +3,7 @@ const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer']
 const MIN_REQUIRED_SECTIONS = 7;
 const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const HUB_SLIDES = [
   { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
