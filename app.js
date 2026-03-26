@@ -443,7 +443,7 @@ function renderClubDashboard() {
 signupForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(signupForm);
-    const fullName = String(formData.get('fullName') || '').trim();
+      const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim().toLowerCase();
   const password = String(formData.get('password') || '');
   if (!fullName || !email || !password) return;
@@ -457,6 +457,8 @@ signupForm?.addEventListener('submit', async (event) => {
     if (submitBtn) submitBtn.disabled = false;
     return;
   }
+
+  currentUser = createUser({ fullName, email });
 
   currentUser = createUser({ fullName, email });
   signupScreen.classList.add('hidden');
