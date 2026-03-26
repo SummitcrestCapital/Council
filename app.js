@@ -147,26 +147,29 @@ function slugifyUsername(value) {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '') || `user_${Math.random().toString(36).slice(2, 8)}`;
 }
-
 async function ensureProfileFromAuth(authUser, fullName) {
-  const emailName = (authUser.email || '').split('@')[0];
+  const emailName = String(authUser.email || '').split('@')[0];
+  const displayName = String(fullName || authUser.user_metadata?.full_name || '').trim();
 
   const payload = {
     id: authUser.id,
-    username: slugifyUsername(fullName || emailName || authUser.id),
-    full_name: fullName || authUser.user_metadata?.full_name || null,
+    username: slugifyUsername(displayName || emailName || authUser.id),
+    full_name: displayName || null,
   };
 
   const { data, error } = await supabaseClient
     .from('profiles')
     .upsert(payload, { onConflict: 'id' })
-    .select('*')
+    .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('PROFILE UPSERT ERROR:', error);
+    throw error;
+  }
+
   return data;
 }
-
 async function getOrCreateIndividualSpace() {
   // spaces: id, type, name, owner_id, join_code, created_at, slug
   let { data: space, error } = await supabaseClient.from('spaces').select('*').eq('slug', DEFAULT_INDIVIDUAL_SPACE_SLUG).maybeSingle();
@@ -516,37 +519,30 @@ signupForm.addEventListener('submit', async (event) => {
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
 
-  try {
-    // Try sign in first
-    const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
+try {
+  const signUp = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName } },
+  });
 
-    if (signIn.error) {
-      // Only sign up if user doesn't exist
-      if (signIn.error.message.toLowerCase().includes('invalid login')) {
-        const signUp = await supabaseClient.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: fullName } },
-        });
+  console.log('SIGNUP RESULT:', signUp);
 
-        if (signUp.error) throw signUp.error;
+  if (signUp.error) throw signUp.error;
 
-        if (!signUp.data.session) {
-          alert('Check your email to confirm your account.');
-          return;
-        }
-      } else {
-        throw signIn.error;
-      }
-    }
+  const { data } = await supabaseClient.auth.getUser();
+  const authUser = data.user;
 
-    const { data } = await supabaseClient.auth.getUser();
-    if (!data.user) throw new Error('Auth failed');
+  console.log('AUTH USER AFTER SIGNUP:', authUser);
 
-    await ensureProfileFromAuth(data.user, fullName);
-    await routeAuthenticatedUser();
+  if (!authUser) throw new Error('Authentication failed.');
 
-  } catch (error) {
+  await ensureProfileFromAuth(authUser, fullName);
+
+  console.log('PROFILE CREATED SUCCESSFULLY');
+
+  await routeAuthenticatedUser();
+} catch (error) {
     console.error(error);
     alert(error.message || 'Auth failed');
   }
