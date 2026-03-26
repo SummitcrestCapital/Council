@@ -90,9 +90,11 @@ const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-});
+const supabaseClient = window.supabase?.createClient
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  })
+  : null;
 
 let db = { users: [], sessions: [], spaces: [] };
 let currentUser = null;
@@ -286,7 +288,21 @@ function hideAllMainScreens() {
   clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
+function showSupabaseUnavailable() {
+  const message = 'Unable to load Supabase client. Check your internet connection and reload.';
+  const panelText = signupScreen.querySelector('.panel-text');
+  if (panelText) panelText.textContent = message;
+  const submitButton = signupForm?.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+}
+
 async function routeAuthenticatedUser() {
+  if (!supabaseClient) {
+    showSupabaseUnavailable();
+    signupScreen.classList.remove('hidden');
+    hideAllMainScreens();
+    return;
+  }
   try {
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) {
@@ -469,6 +485,7 @@ function renderClubDashboard() {
 
 signupForm && signupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!supabaseClient) { showSupabaseUnavailable(); return; }
   const formData = new FormData(signupForm);
   const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim();
@@ -673,12 +690,19 @@ backToHubBtn && backToHubBtn.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn && presentationPrevBtn.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn && presentationNextBtn.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
 
-supabaseClient.auth.onAuthStateChange(async (event) => {
-  if (event === 'SIGNED_OUT') {
-    currentUser = null; activeSession = null;
-    signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
-  }
-  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-    try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
-  }
-});
+if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange(async (event) => {
+    if (event === 'SIGNED_OUT') {
+      currentUser = null; activeSession = null;
+      signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
+    }
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+      try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
+    }
+  });
+} else {
+  showSupabaseUnavailable();
+  console.error('Supabase client unavailable: CDN script failed to load.');
+  signupScreen.classList.remove('hidden');
+  hideAllMainScreens();
+}
