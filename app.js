@@ -23,6 +23,8 @@ const presentationView = document.querySelector('#presentation-view');
 const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 const signupForm = document.querySelector('#signup-form');
+const createAccountBtn = document.querySelector('#create-account-btn');
+const signInBtn = document.querySelector('#sign-in-btn');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
@@ -90,9 +92,11 @@ const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-});
+const supabaseClient = window.supabase?.createClient
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  })
+  : null;
 
 let db = { users: [], sessions: [], spaces: [] };
 let currentUser = null;
@@ -286,7 +290,21 @@ function hideAllMainScreens() {
   clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
 }
 
+function showSupabaseUnavailable() {
+  const message = 'Unable to load Supabase client. Check your internet connection and reload.';
+  const panelText = signupScreen.querySelector('.panel-text');
+  if (panelText) panelText.textContent = message;
+  createAccountBtn && (createAccountBtn.disabled = true);
+  signInBtn && (signInBtn.disabled = true);
+}
+
 async function routeAuthenticatedUser() {
+  if (!supabaseClient) {
+    showSupabaseUnavailable();
+    signupScreen.classList.remove('hidden');
+    hideAllMainScreens();
+    return;
+  }
   try {
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) {
@@ -467,36 +485,44 @@ function renderClubDashboard() {
 
 // ─── Event listeners ──────────────────────────────────────────────────────────
 
-signupForm && signupForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
+async function handleAuth(action) {
+  if (!supabaseClient) { showSupabaseUnavailable(); return; }
   const formData = new FormData(signupForm);
   const fullName = String(formData.get('fullName') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
   try {
-    console.log('STEP 1: Attempting sign in...');
-    const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
-    console.log('STEP 1 result:', JSON.stringify({ error: signIn.error ? signIn.error.message : null, hasSession: !!signIn.data.session }));
-    if (signIn.error) {
-      console.log('STEP 2: Sign in failed, attempting sign up...');
+    if (action === 'signin') {
+      const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (signIn.error) throw signIn.error;
+    } else {
+      if (!fullName) throw new Error('Please enter your full name to create an account.');
       const signUp = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
-      console.log('STEP 2 result:', JSON.stringify({ error: signUp.error ? signUp.error.message : null, hasSession: !!signUp.data.session }));
-      if (signUp.error) throw signUp.error;
+      if (signUp.error) {
+        const message = String(signUp.error.message || '');
+        const isAlreadyRegistered = /already registered|already exists|exists/i.test(message);
+        if (!isAlreadyRegistered) throw signUp.error;
+        throw new Error('This email is already registered. Use "I already have an account" to sign in.');
+      }
       if (signUp.data.user && !signUp.data.session) {
-        alert('Check your email and click the confirmation link, then come back to sign in.');
-        return;
+        const immediateSignIn = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (immediateSignIn.error) {
+          throw new Error('Account was created but sign-in did not complete. Please use "I already have an account" and sign in.');
+        }
       }
     }
-    console.log('STEP 3: Getting current user...');
     const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) throw new Error('Authentication failed. Please try again.');
     await ensureProfileFromAuth(authUser, fullName);
     await routeAuthenticatedUser();
   } catch (error) {
-    console.error('AUTH ERROR:', error);
-    alert(error.message || 'Unable to authenticate right now.');
+    alert(error.message || (action === 'signin' ? 'Unable to sign in right now.' : 'Unable to create account right now.'));
   }
-});
+}
+
+signupForm && signupForm.addEventListener('submit', (event) => event.preventDefault());
+createAccountBtn && createAccountBtn.addEventListener('click', () => { void handleAuth('signup'); });
+signInBtn && signInBtn.addEventListener('click', () => { void handleAuth('signin'); });
 
 individualBtn && individualBtn.addEventListener('click', async () => {
   if (!currentUser || !currentUser.id) return;
@@ -673,12 +699,19 @@ backToHubBtn && backToHubBtn.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn && presentationPrevBtn.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn && presentationNextBtn.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
 
-supabaseClient.auth.onAuthStateChange(async (event) => {
-  if (event === 'SIGNED_OUT') {
-    currentUser = null; activeSession = null;
-    signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
-  }
-  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-    try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
-  }
-});
+if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange(async (event) => {
+    if (event === 'SIGNED_OUT') {
+      currentUser = null; activeSession = null;
+      signupScreen.classList.remove('hidden'); hideAllMainScreens(); return;
+    }
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+      try { await routeAuthenticatedUser(); } catch (error) { console.error(error); }
+    }
+  });
+} else {
+  showSupabaseUnavailable();
+  console.error('Supabase client unavailable: CDN script failed to load.');
+  signupScreen.classList.remove('hidden');
+  hideAllMainScreens();
+}

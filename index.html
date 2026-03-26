@@ -28,7 +28,10 @@
           <label>Full name<input type="text" name="fullName" required autocomplete="name" /></label>
           <label>Email<input type="email" name="email" required autocomplete="email" /></label>
           <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
-          <button type="submit" class="primary-btn">Create account</button>
+          <div class="auth-actions">
+            <button id="create-account-btn" type="button" class="primary-btn">Create account</button>
+            <button id="sign-in-btn" type="button" class="secondary">I already have an account</button>
+          </div>
         </form>
       </section>
 
