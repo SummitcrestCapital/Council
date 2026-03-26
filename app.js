@@ -1,6 +1,8 @@
 const DB_KEY = 'council-db-v6';
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer'];
 const MIN_REQUIRED_SECTIONS = 7;
+const SUPABASE_URL = 'https://seyhhqobsefkzmekwqjj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNleWhocW9ic2Vma3ptZWt3cWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTk0NDAsImV4cCI6MjA5MDAzNTQ0MH0.xdy-X51uf1EeXpPYG6aKLui7pgHq9qtqqvJI2u1Kqeg';
 
 const HUB_SLIDES = [
   { key: 'executive_summary', title: '1. Executive Summary', prompt: 'What is your overall recommendation and why?', helper: ['This is your quick pitch.', 'Imagine explaining your idea in 30 seconds.', 'Include BOTH positives and negatives.'], lookFor: ['Clear recommendation (Buy / Watch / Avoid).', '2–4 key points.', 'Balanced view (not just hype).', 'Should summarize everything that follows.'], shortcuts: ['None needed — this is YOUR synthesis.'], imageHint: 'Helpful visuals: company logo, mini stock chart, or one key stat image. Keep this slide light.', placeholder: 'Write 3–5 bullets.' },
@@ -22,6 +24,7 @@ const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 
 const signupForm = document.querySelector('#signup-form');
+const signupStatus = document.querySelector('#signup-status');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
@@ -135,6 +138,61 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function createUser({ fullName, email }) {
   const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
   db.users.push(user); saveDb(); return user;
+}
+
+async function createSupabaseAuthUser({ email, password, fullName }) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      data: { full_name: fullName },
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload?.msg || payload?.error_description || payload?.error || 'Unable to create auth account.');
+  return payload;
+}
+
+async function upsertSupabaseProfile({ authUserId, username, fullName, password, accessToken }) {
+  if (!authUserId) throw new Error('Unable to create profile: missing auth user id.');
+  const profilePayload = {
+    id: authUserId,
+    username,
+    full_name: fullName,
+    onboarding_complete: false,
+    password,
+  };
+  const missingColumnRegex = /Could not find the '([^']+)' column/i;
+  let attempts = 0;
+  while (attempts < 4) {
+    attempts += 1;
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([profilePayload]),
+    });
+    if (response.ok) return;
+    const payload = await response.json().catch(() => ({}));
+    const message = String(payload?.message || payload?.hint || '');
+    const missingColumn = message.match(missingColumnRegex)?.[1];
+    if (missingColumn && Object.prototype.hasOwnProperty.call(profilePayload, missingColumn)) {
+      delete profilePayload[missingColumn];
+      continue;
+    }
+    throw new Error(payload?.message || payload?.hint || 'Unable to write profile row.');
+  }
+  throw new Error('Unable to write profile row: profile schema does not include required columns.');
 }
 
 function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) => [s.key, { input: '', extras: {}, images: [] }])); }
@@ -362,12 +420,36 @@ function renderClubDashboard() {
 }
 
 // Events
-signupForm?.addEventListener('submit', (event) => {
+signupForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(signupForm);
-  currentUser = createUser({ fullName: String(formData.get('fullName') || '').trim(), email: String(formData.get('email') || '').trim() });
+  const fullName = String(formData.get('fullName') || '').trim();
+  const email = String(formData.get('email') || '').trim().toLowerCase();
+  const password = String(formData.get('password') || '');
+  if (!fullName || !email || !password) return;
+  const submitBtn = signupForm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  if (signupStatus) signupStatus.textContent = 'Creating your account...';
+  try {
+    const authPayload = await createSupabaseAuthUser({ email, password, fullName });
+    await upsertSupabaseProfile({
+      authUserId: authPayload?.user?.id,
+      username: email,
+      fullName,
+      password,
+      accessToken: authPayload?.session?.access_token,
+    });
+  } catch (error) {
+    if (signupStatus) signupStatus.textContent = error.message || 'Unable to create account right now.';
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  currentUser = createUser({ fullName, email });
   signupScreen.classList.add('hidden');
   modeScreen.classList.remove('hidden');
+  if (signupStatus) signupStatus.textContent = '';
+  if (submitBtn) submitBtn.disabled = false;
 });
 
 individualBtn?.addEventListener('click', () => {
