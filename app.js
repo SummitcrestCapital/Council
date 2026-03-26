@@ -526,7 +526,11 @@ signupForm && signupForm.addEventListener('submit', async (event) => {
   } catch (error) {
     alert(error.message || (authMode === 'signin' ? 'Unable to sign in right now.' : 'Unable to create account right now.'));
   }
-});
+}
+
+signupForm && signupForm.addEventListener('submit', (event) => event.preventDefault());
+createAccountBtn && createAccountBtn.addEventListener('click', () => { void handleAuth('signup'); });
+signInBtn && signInBtn.addEventListener('click', () => { void handleAuth('signin'); });
 
 authSwitchBtn && authSwitchBtn.addEventListener('click', () => {
   setAuthMode(authMode === 'signup' ? 'signin' : 'signup');
