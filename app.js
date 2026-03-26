@@ -24,6 +24,10 @@ const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
 
 const signupForm = document.querySelector('#signup-form');
+const showLoginBtn = document.querySelector('#show-login-btn');
+const loginForm = document.querySelector('#login-form');
+const loginStatus = document.querySelector('#login-status');
+const backToSignupBtn = document.querySelector('#back-to-signup-btn');
 const signupStatus = document.querySelector('#signup-status');
 const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
