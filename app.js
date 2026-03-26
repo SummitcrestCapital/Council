@@ -143,7 +143,7 @@ async function getOrCreateIndividualSpace() {
     throw error;
   }
   if (space) return space;
-  const { data: created, error: insertError } = await supabaseClientClient
+  const { data: created, error: insertError } = await supabaseClient
     .from('spaces')
     .insert({ type: 'individual', name: 'Individual', slug: DEFAULT_INDIVIDUAL_SPACE_SLUG })
     .select('*')
@@ -160,7 +160,7 @@ async function getCurrentCycle() {
   const { data, error } = await supabaseClient.from('cycles').select('*').eq('name', cycleName).maybeSingle();
   if (error) throw error;
   if (data) return data;
-  const { data: created, error: insertError } = await supabaseClientClient
+  const { data: created, error: insertError } = await supabaseClient
     .from('cycles')
     .insert({ name: cycleName, deadline_at: cycleDeadline().toISOString(), status: 'active' })
     .select('*')
@@ -173,7 +173,7 @@ async function ensureMembership(userId, spaceId) {
   const { data: existing, error } = await supabaseClient.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
   if (error) throw error;
   if (existing) return existing;
-  const { data: created, error: insertError } = await supabaseClientClient
+  const { data: created, error: insertError } = await supabaseClient
     .from('memberships')
     .insert({ user_id: userId, space_id: spaceId, role: 'member' })
     .select('*')
@@ -233,7 +233,7 @@ async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
   if (error) throw error;
   if (data) return normalizeParticipantRecord(data);
 
-  const { data: created, error: insertError } = await supabaseClientClient.from('cycle_participants')
+  const { data: created, error: insertError } = await supabaseClient.from('cycle_participants')
     .insert({
       user_id: userId,
       cycle_id: cycleId,
