@@ -99,7 +99,7 @@ const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 let db = { users: [], sessions: [], spaces: [] };
@@ -130,20 +130,20 @@ function emptySlideResponses() { return Object.fromEntries(HUB_SLIDES.map((s) =>
 async function ensureProfileFromAuth(authUser, fullName = '') {
   const profilePayload = { id: authUser.id, email: authUser.email || '' };
   if (fullName) profilePayload.full_name = fullName;
-  const { data, error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }).select('*').single();
+  const { data, error } = await supabaseClient.from('profiles').upsert(profilePayload, { onConflict: 'id' }).select('*').single();
   if (error) throw error;
   return data;
 }
 
 async function getOrCreateIndividualSpace() {
   // FIX: Added explicit error logging so failures here surface rather than silently blocking sign-in
-  let { data: space, error } = await supabase.from('spaces').select('*').eq('slug', DEFAULT_INDIVIDUAL_SPACE_SLUG).maybeSingle();
+  let { data: space, error } = await supabaseClient.from('spaces').select('*').eq('slug', DEFAULT_INDIVIDUAL_SPACE_SLUG).maybeSingle();
   if (error) {
     console.error('getOrCreateIndividualSpace select error:', error);
     throw error;
   }
   if (space) return space;
-  const { data: created, error: insertError } = await supabase
+  const { data: created, error: insertError } = await supabaseClientClient
     .from('spaces')
     .insert({ type: 'individual', name: 'Individual', slug: DEFAULT_INDIVIDUAL_SPACE_SLUG })
     .select('*')
@@ -157,10 +157,10 @@ async function getOrCreateIndividualSpace() {
 
 async function getCurrentCycle() {
   const cycleName = currentCycleName();
-  const { data, error } = await supabase.from('cycles').select('*').eq('name', cycleName).maybeSingle();
+  const { data, error } = await supabaseClient.from('cycles').select('*').eq('name', cycleName).maybeSingle();
   if (error) throw error;
   if (data) return data;
-  const { data: created, error: insertError } = await supabase
+  const { data: created, error: insertError } = await supabaseClientClient
     .from('cycles')
     .insert({ name: cycleName, deadline_at: cycleDeadline().toISOString(), status: 'active' })
     .select('*')
@@ -170,10 +170,10 @@ async function getCurrentCycle() {
 }
 
 async function ensureMembership(userId, spaceId) {
-  const { data: existing, error } = await supabase.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
+  const { data: existing, error } = await supabaseClient.from('memberships').select('*').eq('user_id', userId).eq('space_id', spaceId).maybeSingle();
   if (error) throw error;
   if (existing) return existing;
-  const { data: created, error: insertError } = await supabase
+  const { data: created, error: insertError } = await supabaseClientClient
     .from('memberships')
     .insert({ user_id: userId, space_id: spaceId, role: 'member' })
     .select('*')
@@ -203,7 +203,7 @@ function normalizeParticipantRecord(participant) {
 }
 
 async function loadPitchSectionsForParticipant(participantId) {
-  const { data, error } = await supabase.from('pitch_sections').select('*').eq('cycle_participant_id', participantId);
+  const { data, error } = await supabaseClient.from('pitch_sections').select('*').eq('cycle_participant_id', participantId);
   if (error) throw error;
   const responses = emptySlideResponses();
   (data || []).forEach((section) => {
@@ -224,16 +224,16 @@ async function savePitchSection(participantId, sectionKey, response) {
     extras: response.extras || {},
     images: response.images || [],
   };
-  const { error } = await supabase.from('pitch_sections').upsert(payload, { onConflict: 'cycle_participant_id,section_key' });
+  const { error } = await supabaseClient.from('pitch_sections').upsert(payload, { onConflict: 'cycle_participant_id,section_key' });
   if (error) throw error;
 }
 
 async function getOrCreateCycleParticipant({ userId, cycleId, spaceId }) {
-  const { data, error } = await supabase.from('cycle_participants').select('*,cycles(name)').eq('user_id', userId).eq('cycle_id', cycleId).eq('space_id', spaceId).maybeSingle();
+  const { data, error } = await supabaseClient.from('cycle_participants').select('*,cycles(name)').eq('user_id', userId).eq('cycle_id', cycleId).eq('space_id', spaceId).maybeSingle();
   if (error) throw error;
   if (data) return normalizeParticipantRecord(data);
 
-  const { data: created, error: insertError } = await supabase.from('cycle_participants')
+  const { data: created, error: insertError } = await supabaseClientClient.from('cycle_participants')
     .insert({
       user_id: userId,
       cycle_id: cycleId,
@@ -311,7 +311,7 @@ async function routeAuthenticatedUser() {
   if (isRouting) return;
   isRouting = true;
   try {
-    const authUser = (await supabase.auth.getUser()).data.user;
+    const authUser = (await supabaseClient.auth.getUser()).data.user;
     if (!authUser) {
       signupScreen.classList.remove('hidden');
       hideAllMainScreens();
@@ -522,12 +522,12 @@ signupForm?.addEventListener('submit', async (event) => {
   const password = String(formData.get('password') || '');
   try {
     console.log('STEP 1: Attempting sign in...');
-    const signIn = await supabase.auth.signInWithPassword({ email, password });
+    const signIn = await supabaseClient.auth.signInWithPassword({ email, password });
     console.log('STEP 1 result:', JSON.stringify({ error: signIn.error, hasSession: !!signIn.data?.session, hasUser: !!signIn.data?.user }));
 
     if (signIn.error) {
       console.log('STEP 2: Sign in failed, attempting sign up...');
-      const signUp = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+      const signUp = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
       console.log('STEP 2 result:', JSON.stringify({ error: signUp.error, hasSession: !!signUp.data?.session, hasUser: !!signUp.data?.user }));
       if (signUp.error) throw signUp.error;
       if (signUp.data?.user && !signUp.data?.session) {
@@ -537,7 +537,7 @@ signupForm?.addEventListener('submit', async (event) => {
     }
 
     console.log('STEP 3: Getting current user...');
-    const authUser = (await supabase.auth.getUser()).data.user;
+    const authUser = (await supabaseClient.auth.getUser()).data.user;
     console.log('STEP 3 result:', JSON.stringify({ hasUser: !!authUser, id: authUser?.id, email: authUser?.email }));
     if (!authUser) throw new Error('Authentication failed. Please try again.');
 
@@ -639,7 +639,7 @@ joinCycleBtn?.addEventListener('click', async () => {
     activeSession.joinedCycle = true;
     activeSession.joinedAt = joinedAt;
     if (currentContext === 'individual') {
-      const { error } = await supabase.from('cycle_participants').update({ joined_at: joinedAt, status: 'in_progress' }).eq('id', activeSession.id);
+      const { error } = await supabaseClient.from('cycle_participants').update({ joined_at: joinedAt, status: 'in_progress' }).eq('id', activeSession.id);
       if (error) throw error;
     } else saveDb();
     renderCycleStep();
@@ -662,7 +662,7 @@ confirmLockBtn?.addEventListener('click', async () => {
   try {
     activeSession.tickerLocked = true;
     if (currentContext === 'individual') {
-      const { error } = await supabase.from('cycle_participants').update({
+      const { error } = await supabaseClient.from('cycle_participants').update({
         ticker: activeSession.ticker,
         company_name: activeSession.ticker,
         ticker_locked: true,
@@ -735,7 +735,7 @@ submitPitchBtn?.addEventListener('click', async () => {
 
   try {
     if (currentContext === 'individual') {
-      const { error } = await supabase.from('cycle_participants').update({ submitted_at: activeSession.submittedAt, status: 'submitted' }).eq('id', activeSession.id);
+      const { error } = await supabaseClient.from('cycle_participants').update({ submitted_at: activeSession.submittedAt, status: 'submitted' }).eq('id', activeSession.id);
       if (error) throw error;
     } else saveDb();
     renderPitchHub();
@@ -756,7 +756,7 @@ presentationPrevBtn?.addEventListener('click', () => { if (presentationIndex > 0
 presentationNextBtn?.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
 
 // FIX: onAuthStateChange now skips re-routing during an active routing call to prevent race conditions
-supabase.auth.onAuthStateChange(async (event) => {
+supabaseClient.auth.onAuthStateChange(async (event) => {
   if (event === 'SIGNED_OUT') {
     currentUser = null;
     activeSession = null;
