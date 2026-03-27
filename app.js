@@ -165,7 +165,7 @@ function createUser({ id, fullName, email }) {
   saveDb();
   return user;
 }
-}let cachedSupabaseClient = null;
+let cachedSupabaseClient = null;
 
 async function getSupabaseClient() {
   if (cachedSupabaseClient) return cachedSupabaseClient;
