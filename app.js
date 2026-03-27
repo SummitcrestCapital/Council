@@ -247,7 +247,8 @@ function getOrCreateClubGroupSession({ userId, clubId, groupId, role, sector, ti
       id: makeId('session'), userId, clubId, groupId, role,
       cycleName, sector, joinedCycle: true, joinedAt: new Date().toISOString(),
       ticker: ticker || '', tickerLocked: Boolean(ticker), slideResponses: emptySlideResponses(),
-submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),    db.sessions.push(session); saveDb();
+submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),};  
+    db.sessions.push(session); saveDb();
   }
   if (!session.slideResponses) session.slideResponses = emptySlideResponses();
   if (!session.updatedAt) session.updatedAt = session.createdAt || new Date().toISOString();
@@ -290,7 +291,7 @@ function addClubMemberRole(clubId, userId, displayName, role) {
 
 function hideAllMainScreens() {
 modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden'); communityView.classList.add('hidden');
-}}
+}
 
 
 function setModeButtonActive(active) {
