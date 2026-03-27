@@ -468,24 +468,29 @@ async function createClubWithSupabase(name, description, ownerId) {
   saveDb();
   return hydrateClubMembersFromSupabase(localClub);
 }
-
 async function joinClubByCode(code, userId, displayName) {
   const normalized = code.trim().toUpperCase();
   const remoteClub = await fetchSupabaseClubByJoinCode(normalized);
-  if (!remoteClub) throw new Error('No club found with that join code.');
+
+  if (!remoteClub) {
+    throw new Error('No club found with that join code.');
+  }
+
   let club = findLocalClubById(remoteClub.id);
+
   if (!club) {
- club = normalizeClubRecord(mapSupabaseSpaceToClub(remoteClub, displayName));
+    club = normalizeClubRecord(mapSupabaseSpaceToClub(remoteClub, displayName));
     db.spaces.push(club);
-  }  } else {
+  } else {
     club.name = remoteClub.name;
     club.ownerId = remoteClub.owner_id;
     club.joinCode = remoteClub.join_code || normalized;
+  }
+
   pendingClub = { clubId: club.id, userId, displayName };
   saveDb();
   return hydrateClubMembersFromSupabase(club);
 }
-
 function addClubMemberRole(clubId, userId, displayName, role) {
   const club = db.spaces.find((space) => space.id === clubId && space.type === 'club');
   if (!club) return null;
