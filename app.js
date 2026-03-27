@@ -44,9 +44,11 @@ const groupDescription = document.querySelector('#group-description');
 const groupJoinCode = document.querySelector('#group-join-code');
 const createGroupBtn = document.querySelector('#create-group-btn');
 const joinGroupBtn = document.querySelector('#join-group-btn');
+const groupStatus = document.querySelector('#group-status');
 
 const pickPmBtn = document.querySelector('#pick-pm-btn');
 const pickAnalystBtn = document.querySelector('#pick-analyst-btn');
+const clubRoleStatus = document.querySelector('#club-role-status');
 
 const clubName = document.querySelector('#club-name');
 const clubRoleLine = document.querySelector('#club-role-line');
@@ -267,16 +269,221 @@ function createClub(name, description, ownerId) {
   db.spaces.push(club); saveDb(); return club;
 }
 
-function joinClubByCode(code, userId, displayName) {
+function mapSupabaseSpaceToClub(space, ownerDisplayName = currentUser?.fullName) {
+  return {
+    id: space.id,
+    type: space.type || 'club',
+    name: space.name,
+    description: space.description || '',
+    joinCode: space.join_code || '',
+    ownerId: space.owner_id,
+    currentCycle: currentCycleName(),
+    members: ownerDisplayName && space.owner_id ? [{ userId: space.owner_id, displayName: ownerDisplayName, role: 'executive' }] : [],
+    groups: [],
+    pitches: [],
+    createdAt: space.created_at || new Date().toISOString(),
+  };
+}
+
+function normalizeClubRecord(club) {
+  if (!club) return club;
+  if (!Array.isArray(club.members)) club.members = [];
+  if (!Array.isArray(club.groups)) club.groups = [];
+  if (!Array.isArray(club.pitches)) club.pitches = [];
+  if (!club.currentCycle) club.currentCycle = currentCycleName();
+  return club;
+}
+
+function findLocalClubById(id) {
+  return db.spaces.find((space) => space.id === id && space.type === 'club');
+}
+
+async function fetchSupabaseClubByJoinCode(code) {
   const normalized = code.trim().toUpperCase();
-  let club = db.spaces.find((space) => space.type === 'club' && space.joinCode === normalized);
-  if (!club) {
-    club = { id: makeId('space'), type: 'club', name: `Test Club ${normalized}`, description: 'Auto-created test club', joinCode: normalized || generateJoinCode(), ownerId: userId, currentCycle: currentCycleName(), members: [], groups: [], pitches: [], createdAt: new Date().toISOString() };
-    db.spaces.push(club);
+const supabaseClient = await getSupabaseClient();
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from('spaces')
+      .select('id, type, name, owner_id, join_code, created_at')
+      .eq('type', 'club')
+      .eq('join_code', normalized)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message || 'Unable to validate join code.');
+    return data;
   }
-  pendingClub = { clubId: club.id, userId, displayName };
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/spaces?select=id,type,name,owner_id,join_code,created_at&type=eq.club&join_code=eq.${encodeURIComponent(normalized)}&limit=1`, {
+    method: 'GET',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  const payload = await response.json().catch(() => []);
+  if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to validate join code.');
+  return Array.isArray(payload) ? payload[0] : null;
+}
+
+async function createSupabaseClub({ name, description, ownerId, joinCode }) {
+  const payload = {
+    type: 'club',
+    name,
+    owner_id: ownerId,
+    join_code: joinCode,
+  };
+  const supabaseClient = await getSupabaseClient();
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient.from('spaces').insert(payload).select('id, type, name, owner_id, join_code, created_at').single();
+    if (error) throw new Error(error.message || 'Unable to create club.');
+    return data;
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/spaces`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(payload),
+  });
+  const rows = await response.json().catch(() => []);
+  if (!response.ok) throw new Error(rows?.message || rows?.hint || 'Unable to create club.');
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+async function upsertSupabaseMembership({ userId, spaceId, role }) {
+  const supabaseClient = await getSupabaseClient();
+  const membershipPayload = { user_id: userId, space_id: spaceId, role };
+  if (supabaseClient) {
+    const { data: existing, error: existingError } = await supabaseClient.from('memberships').select('id').eq('user_id', userId).eq('space_id', spaceId).limit(1).maybeSingle();
+    if (existingError) throw new Error(existingError.message || 'Unable to check club membership.');
+
+    if (existing?.id) {
+      const { error: updateError } = await supabaseClient.from('memberships').update({ role }).eq('id', existing.id);
+      if (updateError) throw new Error(updateError.message || 'Unable to update club role.');
+      return;
+    }
+
+    const { error: insertError } = await supabaseClient.from('memberships').insert(membershipPayload);
+    if (insertError) throw new Error(insertError.message || 'Unable to save club role.');
+    return;
+  }
+
+  const lookupResponse = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=id&user_id=eq.${encodeURIComponent(userId)}&space_id=eq.${encodeURIComponent(spaceId)}&limit=1`, {
+    method: 'GET',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  const existingRows = await lookupResponse.json().catch(() => []);
+  if (!lookupResponse.ok) throw new Error(existingRows?.message || existingRows?.hint || 'Unable to check club membership.');
+
+  if (Array.isArray(existingRows) && existingRows[0]?.id) {
+    const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/memberships?id=eq.${encodeURIComponent(existingRows[0].id)}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role }),
+    });
+    if (!updateResponse.ok) {
+      const updatePayload = await updateResponse.json().catch(() => ({}));
+      throw new Error(updatePayload?.message || updatePayload?.hint || 'Unable to update club role.');
+    }
+    return;
+  }
+
+  const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/memberships`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(membershipPayload),
+  });
+  if (!insertResponse.ok) {
+    const insertPayload = await insertResponse.json().catch(() => ({}));
+    throw new Error(insertPayload?.message || insertPayload?.hint || 'Unable to save club role.');
+  }
+}
+
+async function hydrateClubMembersFromSupabase(club) {
+  if (!club?.id) return club;
+  const supabaseClient = await getSupabaseClient();
+  let rows = [];
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from('memberships')
+      .select('user_id, role, profiles:user_id(username, full_name)')
+      .eq('space_id', club.id);
+    if (error) throw new Error(error.message || 'Unable to load club members.');
+    rows = data || [];
+  } else {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=user_id,role,profiles:user_id(username,full_name)&space_id=eq.${encodeURIComponent(club.id)}`, {
+      method: 'GET',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    const payload = await response.json().catch(() => []);
+    if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to load club members.');
+    rows = Array.isArray(payload) ? payload : [];
+  }
+
+  const members = rows.map((row) => ({
+    userId: row.user_id,
+    role: row.role || 'member',
+    displayName: row.profiles?.username || row.profiles?.full_name || row.user_id,
+  }));
+  club.members = members;
   saveDb();
   return club;
+}
+
+async function createClubWithSupabase(name, description, ownerId) {
+  let remoteSpace = null;
+  let lastError = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      remoteSpace = await createSupabaseClub({ name, description, ownerId, joinCode: generateJoinCode() });
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!remoteSpace) throw lastError || new Error('Unable to create club right now.');
+  await upsertSupabaseMembership({ userId: ownerId, spaceId: remoteSpace.id, role: 'executive' });
+  const localClub = normalizeClubRecord(mapSupabaseSpaceToClub(remoteSpace));
+  localClub.description = description || '';
+  db.spaces = db.spaces.filter((space) => space.id !== localClub.id);
+  db.spaces.push(localClub);
+  saveDb();
+  return hydrateClubMembersFromSupabase(localClub);
+}
+
+async function joinClubByCode(code, userId, displayName) {
+  const normalized = code.trim().toUpperCase();
+  const remoteClub = await fetchSupabaseClubByJoinCode(normalized);
+  if (!remoteClub) throw new Error('No club found with that join code.');
+  let club = findLocalClubById(remoteClub.id);
+  if (!club) {
+ club = normalizeClubRecord(mapSupabaseSpaceToClub(remoteClub, displayName));
+    db.spaces.push(club);
+  }  } else {
+    club.name = remoteClub.name;
+    club.ownerId = remoteClub.owner_id;
+    club.joinCode = remoteClub.join_code || normalized;
+  pendingClub = { clubId: club.id, userId, displayName };
+  saveDb();
+  return hydrateClubMembersFromSupabase(club);
 }
 
 function addClubMemberRole(clubId, userId, displayName, role) {
@@ -641,31 +848,67 @@ classBtn?.addEventListener('click', () => {
   setModeButtonActive('class-btn');
   renderClassPlaceholder();
 });
-groupActions?.addEventListener('submit', (event) => {
+groupActions?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!currentUser?.id || !groupSpaceName.value.trim()) return;
-  activeClub = createClub(groupSpaceName.value.trim(), groupDescription.value.trim(), currentUser.id);
-  pendingClub = null;
-  renderClubDashboard();
+ if (groupStatus) groupStatus.textContent = 'Creating club...';
+  if (createGroupBtn) createGroupBtn.disabled = true;
+  try {
+    activeClub = await createClubWithSupabase(groupSpaceName.value.trim(), groupDescription.value.trim(), currentUser.id);
+    pendingClub = null;
+    groupActions.reset();
+    if (groupStatus) groupStatus.textContent = '';
+    renderClubDashboard();
+  } catch (error) {
+    if (groupStatus) groupStatus.textContent = error.message || 'Unable to create club right now.';
+  } finally {
+    if (createGroupBtn) createGroupBtn.disabled = false;
+  }
 });
 
-joinGroupBtn?.addEventListener('click', () => {
+joinGroupBtn?.addEventListener('click', async () => {
   if (!currentUser?.id || !groupJoinCode.value.trim()) return;
-  activeClub = joinClubByCode(groupJoinCode.value, currentUser.id, currentUser.fullName);
-  hideAllMainScreens();
-  clubRoleScreen.classList.remove('hidden');
+ if (groupStatus) groupStatus.textContent = 'Checking code...';
+  if (joinGroupBtn) joinGroupBtn.disabled = true;
+  try {
+    activeClub = await joinClubByCode(groupJoinCode.value, currentUser.id, currentUser.fullName);
+    if (groupStatus) groupStatus.textContent = '';
+    if (clubRoleStatus) clubRoleStatus.textContent = '';
+    hideAllMainScreens();
+    clubRoleScreen.classList.remove('hidden');
+  } catch (error) {
+    if (groupStatus) groupStatus.textContent = error.message || 'Unable to join club right now.';
+  } finally {
+    if (joinGroupBtn) joinGroupBtn.disabled = false;
+  }
 });
 
-pickPmBtn?.addEventListener('click', () => {
+async function handleRoleSelection(role) {
   if (!activeClub || !currentUser?.id) return;
-  activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, 'portfolio_manager');
-  renderClubDashboard();
+ if (clubRoleStatus) clubRoleStatus.textContent = 'Saving your role...';
+  if (pickPmBtn) pickPmBtn.disabled = true;
+  if (pickAnalystBtn) pickAnalystBtn.disabled = true;
+  try {
+    await upsertSupabaseMembership({ userId: currentUser.id, spaceId: activeClub.id, role });
+    activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, role);
+    await hydrateClubMembersFromSupabase(activeClub);
+    pendingClub = null;
+    if (clubRoleStatus) clubRoleStatus.textContent = '';
+    renderClubDashboard();
+  } catch (error) {
+    if (clubRoleStatus) clubRoleStatus.textContent = error.message || 'Unable to save your role.';
+  } finally {
+    if (pickPmBtn) pickPmBtn.disabled = false;
+    if (pickAnalystBtn) pickAnalystBtn.disabled = false;
+  }
+}
+
+pickPmBtn?.addEventListener('click', async () => {
+  await handleRoleSelection('portfolio_manager');
 });
 
-pickAnalystBtn?.addEventListener('click', () => {
-  if (!activeClub || !currentUser?.id) return;
-  activeClub = addClubMemberRole(activeClub.id, currentUser.id, currentUser.fullName, 'analyst');
-  renderClubDashboard();
+pickAnalystBtn?.addEventListener('click', async () => {
+  await handleRoleSelection('analyst');
 });
 
 createClubGroupBtn?.addEventListener('click', () => {
