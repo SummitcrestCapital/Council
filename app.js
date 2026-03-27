@@ -150,10 +150,21 @@ const cycleDeadline = () => { const now = new Date(); return new Date(now.getFul
 const daysUntilDeadline = () => Math.max(0, Math.ceil((cycleDeadline().getTime() - Date.now()) / 86400000));
 
 function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
+function createUser({ id, fullName, email }) {
+  const existing = db.users.find((u) => u.id === id || u.email === email);
+  if (existing) {
+    existing.id = id;
+    existing.fullName = fullName;
+    existing.email = email;
+    saveDb();
+    return existing;
+  }
 
-function createUser({ fullName, email }) {
-  const user = { id: makeId('user'), fullName, email, createdAt: new Date().toISOString() };
-  db.users.push(user); saveDb(); return user;
+  const user = { id, fullName, email, createdAt: new Date().toISOString() };
+  db.users.push(user);
+  saveDb();
+  return user;
+}
 }let cachedSupabaseClient = null;
 
 async function getSupabaseClient() {
@@ -729,21 +740,29 @@ signupForm?.addEventListener('submit', async (event) => {
   const submitBtn = signupForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
   if (signupStatus) signupStatus.textContent = 'Creating your account...';
-  try {
-    await createSupabaseAuthUser({ email, password, fullName });
-  } catch (error) {
-    if (signupStatus) signupStatus.textContent = error.message || 'Unable to create account right now.';
-    if (submitBtn) submitBtn.disabled = false;
-    return;
+try {
+  const authData = await createSupabaseAuthUser({ email, password, fullName });
+  const authUser = authData?.user || authData?.data?.user;
+
+  if (!authUser?.id) {
+    throw new Error('No Supabase user ID returned.');
   }
 
-  currentUser = createUser({ fullName, email });
-
-  currentUser = createUser({ fullName, email });
-  signupScreen.classList.add('hidden');
-  resumeUserExperience();
-if (signupStatus) signupStatus.textContent = '';
+  currentUser = createUser({
+    id: authUser.id,
+    fullName,
+    email,
+  });
+} catch (error) {
+  if (signupStatus) signupStatus.textContent = error.message || 'Unable to create account right now.';
   if (submitBtn) submitBtn.disabled = false;
+  return;
+}
+
+signupScreen.classList.add('hidden');
+resumeUserExperience();
+if (signupStatus) signupStatus.textContent = '';
+if (submitBtn) submitBtn.disabled = false;
 });
 
 showLoginBtn?.addEventListener('click', () => {
@@ -780,8 +799,21 @@ loginForm?.addEventListener('submit', async (event) => {
   try {
     const profile = await findSupabaseProfileByEmail(email);
     if (!profile) throw new Error('No account found for that email.');
-    currentUser = db.users.find((u) => u.email === email) || createUser({ fullName: profile.full_name || email, email });
-    loginScreen.classList.add('hidden');
+currentUser =
+  db.users.find((u) => u.id === profile.id || u.email === email) ||
+  createUser({
+    id: profile.id,
+    fullName: profile.full_name || email,
+    email,
+  });
+
+if (currentUser.id !== profile.id) {
+  currentUser = createUser({
+    id: profile.id,
+    fullName: profile.full_name || email,
+    email,
+  });
+}    loginScreen.classList.add('hidden');
     resumeUserExperience();
     if (loginStatus) loginStatus.textContent = '';
   } catch (error) {
