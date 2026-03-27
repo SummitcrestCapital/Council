@@ -300,7 +300,7 @@ function findLocalClubById(id) {
 
 async function fetchSupabaseClubByJoinCode(code) {
   const normalized = code.trim().toUpperCase();
-const supabaseClient = await getSupabaseClient();
+  const supabaseClient = await getSupabaseClient();
   if (supabaseClient) {
     const { data, error } = await supabaseClient
       .from('spaces')
@@ -358,44 +358,10 @@ async function upsertSupabaseMembership({ userId, spaceId, role }) {
   const supabaseClient = await getSupabaseClient();
   const membershipPayload = { user_id: userId, space_id: spaceId, role };
   if (supabaseClient) {
-    const { data: existing, error: existingError } = await supabaseClient.from('memberships').select('id').eq('user_id', userId).eq('space_id', spaceId).limit(1).maybeSingle();
-    if (existingError) throw new Error(existingError.message || 'Unable to check club membership.');
-
-    if (existing?.id) {
-      const { error: updateError } = await supabaseClient.from('memberships').update({ role }).eq('id', existing.id);
-      if (updateError) throw new Error(updateError.message || 'Unable to update club role.');
-      return;
-    }
-
-    const { error: insertError } = await supabaseClient.from('memberships').insert(membershipPayload);
-    if (insertError) throw new Error(insertError.message || 'Unable to save club role.');
-    return;
-  }
-
-  const lookupResponse = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=id&user_id=eq.${encodeURIComponent(userId)}&space_id=eq.${encodeURIComponent(spaceId)}&limit=1`, {
-    method: 'GET',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  });
-  const existingRows = await lookupResponse.json().catch(() => []);
-  if (!lookupResponse.ok) throw new Error(existingRows?.message || existingRows?.hint || 'Unable to check club membership.');
-
-  if (Array.isArray(existingRows) && existingRows[0]?.id) {
-    const updateResponse = await fetch(`${SUPABASE_URL}/rest/v1/memberships?id=eq.${encodeURIComponent(existingRows[0].id)}`, {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ role }),
-    });
-    if (!updateResponse.ok) {
-      const updatePayload = await updateResponse.json().catch(() => ({}));
-      throw new Error(updatePayload?.message || updatePayload?.hint || 'Unable to update club role.');
-    }
+    const { error } = await supabaseClient
+      .from('memberships')
+      .upsert(membershipPayload, { onConflict: 'user_id,space_id' });
+    if (error) throw new Error(error.message || 'Unable to save club role.');
     return;
   }
 
@@ -405,6 +371,7 @@ async function upsertSupabaseMembership({ userId, spaceId, role }) {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates',
     },
     body: JSON.stringify(membershipPayload),
   });
@@ -416,35 +383,39 @@ async function upsertSupabaseMembership({ userId, spaceId, role }) {
 
 async function hydrateClubMembersFromSupabase(club) {
   if (!club?.id) return club;
-  const supabaseClient = await getSupabaseClient();
-  let rows = [];
-  if (supabaseClient) {
-    const { data, error } = await supabaseClient
-      .from('memberships')
-      .select('user_id, role, profiles:user_id(username, full_name)')
-      .eq('space_id', club.id);
-    if (error) throw new Error(error.message || 'Unable to load club members.');
-    rows = data || [];
-  } else {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=user_id,role,profiles:user_id(username,full_name)&space_id=eq.${encodeURIComponent(club.id)}`, {
-      method: 'GET',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
-    const payload = await response.json().catch(() => []);
-    if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to load club members.');
-    rows = Array.isArray(payload) ? payload : [];
-  }
+  try {
+    const supabaseClient = await getSupabaseClient();
+    let rows = [];
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('memberships')
+        .select('user_id, role, profiles:user_id(username, full_name)')
+        .eq('space_id', club.id);
+      if (error) throw new Error(error.message || 'Unable to load club members.');
+      rows = data || [];
+    } else {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=user_id,role,profiles:user_id(username,full_name)&space_id=eq.${encodeURIComponent(club.id)}`, {
+        method: 'GET',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      });
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to load club members.');
+      rows = Array.isArray(payload) ? payload : [];
+    }
 
-  const members = rows.map((row) => ({
-    userId: row.user_id,
-    role: row.role || 'member',
-    displayName: row.profiles?.username || row.profiles?.full_name || row.user_id,
-  }));
-  club.members = members;
-  saveDb();
+    const members = rows.map((row) => ({
+      userId: row.user_id,
+      role: row.role || 'member',
+      displayName: row.profiles?.username || row.profiles?.full_name || row.user_id,
+    }));
+    if (members.length) club.members = members;
+    saveDb();
+  } catch (error) {
+    if (!String(error?.message || '').toLowerCase().includes('infinite recursion')) throw error;
+  }
   return club;
 }
 
@@ -468,6 +439,7 @@ async function createClubWithSupabase(name, description, ownerId) {
   saveDb();
   return hydrateClubMembersFromSupabase(localClub);
 }
+
 async function joinClubByCode(code, userId, displayName) {
   const normalized = code.trim().toUpperCase();
   const remoteClub = await fetchSupabaseClubByJoinCode(normalized);
