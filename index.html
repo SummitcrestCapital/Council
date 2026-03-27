@@ -46,8 +46,16 @@
       </section>
 
       <section id="mode-screen" class="panel hidden">
-        <h2>Choose your path</h2>
+        <div class="hub-header">
+          <h2>Choose your path</h2>
+          <button id="profile-icon-btn" class="secondary" type="button" aria-label="Open profile quick access">👤 Profile</button>
+        </div>
         <p class="panel-text">Pick your Council experience.</p>
+        <div id="profile-panel" class="dash-card hidden">
+          <h3>Profile quick access</h3>
+          <p class="panel-text">Jump back to your latest saved work.</p>
+          <button id="resume-session-btn" class="primary-btn" type="button">Return to my latest hub</button>
+        </div>
         <div class="mode-options">
           <button id="individual-btn" class="mode-btn primary-btn" type="button">Learn on your own</button>
           <button id="club-btn" class="mode-btn secondary" type="button">Join a club</button>
@@ -111,7 +119,7 @@
       </section>
 
       <section id="pitch-hub" class="panel hidden">
-        <div class="hub-header"><h2>Pitch Hub</h2><p id="status-pill" class="status-pill">Not started</p></div>
+        <div class="hub-header"><h2>Pitch Hub</h2><div><button id="go-home-btn" class="secondary" type="button">Return home</button><p id="status-pill" class="status-pill">Not started</p></div></div>
         <div class="dashboard-grid">
           <article class="dash-card"><h3>Cycle header</h3><p id="hub-cycle"></p><p id="hub-sector"></p><p id="hub-countdown"></p></article>
           <article class="dash-card"><h3>Your Pick</h3><p id="hub-ticker"></p><p id="hub-company"></p><p id="hub-locked">Locked for this cycle</p></article>
@@ -153,6 +161,16 @@
           <p id="presentation-position"></p>
           <button id="presentation-next-btn" class="primary-btn" type="button">Next</button>
         </div>
+                <div id="presentation-final-actions" class="mode-options hidden">
+          <button id="presentation-home-btn" class="secondary" type="button">Return to home page</button>
+          <button id="presentation-community-btn" class="primary-btn" type="button">View community presentation</button>
+        </div>
+      </section>
+
+      <section id="community-view" class="panel hidden">
+        <h2>Community presentation</h2>
+        <p class="panel-text">Blank page placeholder for upcoming community presentation experience.</p>
+        <button id="community-home-btn" class="secondary" type="button">Return home</button>
       </section>
     </main>
 
