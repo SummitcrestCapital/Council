@@ -23,6 +23,7 @@ const groupHub = document.querySelector('#group-hub');
 const presentationView = document.querySelector('#presentation-view');
 const clubRoleScreen = document.querySelector('#club-role-screen');
 const clubDashboard = document.querySelector('#club-dashboard');
+const communityView = document.querySelector('#community-view');
 
 const signupForm = document.querySelector('#signup-form');
 const showLoginBtn = document.querySelector('#show-login-btn');
@@ -34,6 +35,9 @@ const individualBtn = document.querySelector('#individual-btn');
 const clubBtn = document.querySelector('#club-btn');
 const classBtn = document.querySelector('#class-btn');
 const groupActions = document.querySelector('#group-actions');
+const profileIconBtn = document.querySelector('#profile-icon-btn');
+const profilePanel = document.querySelector('#profile-panel');
+const resumeSessionBtn = document.querySelector('#resume-session-btn');
 const groupTitle = document.querySelector('#group-title');
 const groupSpaceName = document.querySelector('#group-space-name');
 const groupDescription = document.querySelector('#group-description');
@@ -75,6 +79,7 @@ const progressPercent = document.querySelector('#progress-percent');
 const progressList = document.querySelector('#progress-list');
 const submitPitchBtn = document.querySelector('#submit-pitch-btn');
 const viewPresentationBtn = document.querySelector('#view-presentation-btn');
+const goHomeBtn = document.querySelector('#go-home-btn');
 const submitNote = document.querySelector('#submit-note');
 const deadlineText = document.querySelector('#deadline-text');
 
@@ -104,6 +109,10 @@ const backToHubBtn = document.querySelector('#back-to-hub-btn');
 const presentationPrevBtn = document.querySelector('#presentation-prev-btn');
 const presentationNextBtn = document.querySelector('#presentation-next-btn');
 const presentationPosition = document.querySelector('#presentation-position');
+const presentationFinalActions = document.querySelector('#presentation-final-actions');
+const presentationHomeBtn = document.querySelector('#presentation-home-btn');
+const presentationCommunityBtn = document.querySelector('#presentation-community-btn');
+const communityHomeBtn = document.querySelector('#community-home-btn');
 
 let db = loadDb();
 let currentUser = null;
@@ -222,7 +231,8 @@ function getOrCreateSession(userId) {
   const cycleName = currentCycleName();
   let session = db.sessions.find((item) => item.userId === userId && item.cycleName === cycleName && !item.groupId);
   if (!session) {
-session = { id: makeId('session'), userId, cycleName, sector: SECTORS[Math.floor(Math.random() * SECTORS.length)], joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false, slideResponses: emptySlideResponses(), submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };    db.sessions.push(session); saveDb();
+session = { id: makeId('session'), userId, cycleName, sector: SECTORS[Math.floor(Math.random() * SECTORS.length)], joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false, slideResponses: emptySlideResponses(), submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; 
+    db.sessions.push(session); saveDb();
   }
   if (!session.updatedAt) session.updatedAt = session.createdAt || new Date().toISOString();
   if (!session.lastOpenedSection) session.lastOpenedSection = HUB_SLIDES[0].key;
@@ -237,8 +247,7 @@ function getOrCreateClubGroupSession({ userId, clubId, groupId, role, sector, ti
       id: makeId('session'), userId, clubId, groupId, role,
       cycleName, sector, joinedCycle: true, joinedAt: new Date().toISOString(),
       ticker: ticker || '', tickerLocked: Boolean(ticker), slideResponses: emptySlideResponses(),
-  submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),    };
-    db.sessions.push(session); saveDb();
+submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),    db.sessions.push(session); saveDb();
   }
   if (!session.slideResponses) session.slideResponses = emptySlideResponses();
   if (!session.updatedAt) session.updatedAt = session.createdAt || new Date().toISOString();
@@ -280,8 +289,8 @@ function addClubMemberRole(clubId, userId, displayName, role) {
 }
 
 function hideAllMainScreens() {
-  modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden');
-}
+modeScreen.classList.add('hidden'); cycleScreen.classList.add('hidden'); pitchHub.classList.add('hidden'); groupHub.classList.add('hidden'); presentationView.classList.add('hidden'); clubRoleScreen.classList.add('hidden'); clubDashboard.classList.add('hidden'); communityView.classList.add('hidden');
+}}
 
 
 function setModeButtonActive(active) {
@@ -406,6 +415,8 @@ function renderPresentationPage() {
   presentationPosition.textContent = `Slide ${presentationIndex + 1} of ${presentationSlidesHtml.length}`;
   presentationPrevBtn.disabled = presentationIndex === 0;
   presentationNextBtn.disabled = presentationIndex === presentationSlidesHtml.length - 1;
+   const onLastSlide = presentationIndex === presentationSlidesHtml.length - 1;
+  presentationFinalActions.classList.toggle('hidden', !onLastSlide);
 }
 
 function renderClassPlaceholder() {
@@ -415,16 +426,35 @@ function renderClassPlaceholder() {
   groupHubSubtitle.textContent = 'Class mode remains unchanged in this iteration.';
   groupHubCards.innerHTML = '<article class="dash-card"><h3>Coming soon</h3><p>Class workflows are unchanged for now.</p></article>';
 }
+function latestSessionForUser(userId) {
+  return [...db.sessions]
+    .filter((item) => item.userId === userId)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())[0] || null;
+}
+
+function currentIndividualSessionForUser(userId) {
+  return db.sessions.find((item) => item.userId === userId && item.cycleName === currentCycleName() && !item.groupId) || null;
+}
+
+function renderHomeScreen() {
+  hideAllMainScreens();
+  modeScreen.classList.remove('hidden');
+  groupActions.classList.add('hidden');
+  profilePanel.classList.add('hidden');
+  const individualSession = currentIndividualSessionForUser(currentUser?.id);
+  const alreadyJoinedIndividual = Boolean(individualSession?.joinedCycle || individualSession?.tickerLocked || individualSession?.submittedAt);
+  individualBtn.disabled = alreadyJoinedIndividual;
+  individualBtn.textContent = alreadyJoinedIndividual ? 'Individual cycle already joined' : 'Learn on your own';
+  const hasResumeSession = Boolean(currentUser?.id && latestSessionForUser(currentUser.id));
+  profileIconBtn.classList.toggle('hidden', !hasResumeSession);
+}
 
 function resumeUserExperience() {
   if (!currentUser?.id) return;
-  const latestSession = [...db.sessions]
-    .filter((item) => item.userId === currentUser.id)
-    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())[0];
+  const latestSession = latestSessionForUser(currentUser.id);
 
   if (!latestSession) {
-    hideAllMainScreens();
-    modeScreen.classList.remove('hidden');
+    renderHomeScreen();
     return;
   }
 
@@ -449,7 +479,7 @@ function resumeUserExperience() {
     const isMember = club?.members?.some((m) => m.userId === currentUser.id);
     if (!club || !isMember) {
       hideAllMainScreens();
-      modeScreen.classList.remove('hidden');
+      renderHomeScreen();
       return;
     }
 
@@ -478,9 +508,8 @@ function resumeUserExperience() {
   }
 
   hideAllMainScreens();
-  modeScreen.classList.remove('hidden');
+  renderHomeScreen();
 }
-
 function renderClubDashboard() {
   if (!activeClub) return;
   hideAllMainScreens();
@@ -545,6 +574,16 @@ showLoginBtn?.addEventListener('click', () => {
   loginScreen.classList.remove('hidden');
   if (signupStatus) signupStatus.textContent = '';
   if (loginStatus) loginStatus.textContent = '';
+});
+profileIconBtn?.addEventListener('click', () => {
+  const hasResumeSession = Boolean(currentUser?.id && latestSessionForUser(currentUser.id));
+  if (!hasResumeSession) return;
+  profilePanel.classList.toggle('hidden');
+});
+
+resumeSessionBtn?.addEventListener('click', () => {
+  profilePanel.classList.add('hidden');
+  resumeUserExperience();
 });
 
 backToSignupBtn?.addEventListener('click', () => {
@@ -702,7 +741,6 @@ nextSlideBtn?.addEventListener('click', () => {
   }
 });
 
-
 toggleShortcutsBtn?.addEventListener('click', () => {
   slideShortcuts.classList.toggle('hidden');
   toggleShortcutsBtn.textContent = slideShortcuts.classList.contains('hidden') ? 'Show research shortcuts' : 'Hide research shortcuts';
@@ -765,3 +803,11 @@ viewPresentationBtn?.addEventListener('click', () => {
 backToHubBtn?.addEventListener('click', () => renderPitchHub());
 presentationPrevBtn?.addEventListener('click', () => { if (presentationIndex > 0) { presentationIndex -= 1; renderPresentationPage(); } });
 presentationNextBtn?.addEventListener('click', () => { if (presentationIndex < presentationSlidesHtml.length - 1) { presentationIndex += 1; renderPresentationPage(); } });
+goHomeBtn?.addEventListener('click', () => renderHomeScreen());
+presentationHomeBtn?.addEventListener('click', () => renderHomeScreen());
+presentationCommunityBtn?.addEventListener('click', () => {
+  hideAllMainScreens();
+  communityView.classList.remove('hidden');
+});
+communityHomeBtn?.addEventListener('click', () => renderHomeScreen());
+
