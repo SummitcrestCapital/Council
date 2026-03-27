@@ -222,9 +222,10 @@ function getOrCreateSession(userId) {
   const cycleName = currentCycleName();
   let session = db.sessions.find((item) => item.userId === userId && item.cycleName === cycleName && !item.groupId);
   if (!session) {
-    session = { id: makeId('session'), userId, cycleName, sector: SECTORS[Math.floor(Math.random() * SECTORS.length)], joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false, slideResponses: emptySlideResponses(), submittedAt: null, createdAt: new Date().toISOString() };
-    db.sessions.push(session); saveDb();
+session = { id: makeId('session'), userId, cycleName, sector: SECTORS[Math.floor(Math.random() * SECTORS.length)], joinedCycle: false, joinedAt: null, ticker: '', tickerLocked: false, slideResponses: emptySlideResponses(), submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };    db.sessions.push(session); saveDb();
   }
+  if (!session.updatedAt) session.updatedAt = session.createdAt || new Date().toISOString();
+  if (!session.lastOpenedSection) session.lastOpenedSection = HUB_SLIDES[0].key;
   return session;
 }
 
@@ -236,12 +237,18 @@ function getOrCreateClubGroupSession({ userId, clubId, groupId, role, sector, ti
       id: makeId('session'), userId, clubId, groupId, role,
       cycleName, sector, joinedCycle: true, joinedAt: new Date().toISOString(),
       ticker: ticker || '', tickerLocked: Boolean(ticker), slideResponses: emptySlideResponses(),
-      submittedAt: null, createdAt: new Date().toISOString(),
-    };
+  submittedAt: null, lastOpenedSection: HUB_SLIDES[0].key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),    };
     db.sessions.push(session); saveDb();
   }
   if (!session.slideResponses) session.slideResponses = emptySlideResponses();
+  if (!session.updatedAt) session.updatedAt = session.createdAt || new Date().toISOString();
+  if (!session.lastOpenedSection) session.lastOpenedSection = HUB_SLIDES[0].key;
   return session;
+}
+function touchSession(session, patch = {}) {
+  if (!session) return;
+  Object.assign(session, patch, { updatedAt: new Date().toISOString() });
+  saveDb();
 }
 
 function createClub(name, description, ownerId) {
@@ -409,6 +416,71 @@ function renderClassPlaceholder() {
   groupHubCards.innerHTML = '<article class="dash-card"><h3>Coming soon</h3><p>Class workflows are unchanged for now.</p></article>';
 }
 
+function resumeUserExperience() {
+  if (!currentUser?.id) return;
+  const latestSession = [...db.sessions]
+    .filter((item) => item.userId === currentUser.id)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())[0];
+
+  if (!latestSession) {
+    hideAllMainScreens();
+    modeScreen.classList.remove('hidden');
+    return;
+  }
+
+  if (!latestSession.clubId && !latestSession.groupId) {
+    setModeButtonActive('individual-btn');
+    currentContext = 'individual';
+    activeSession = getOrCreateSession(currentUser.id);
+    currentSlideIndex = Math.max(0, HUB_SLIDES.findIndex((slide) => slide.key === (activeSession.lastOpenedSection || HUB_SLIDES[0].key)));
+    hideAllMainScreens();
+    if (activeSession.tickerLocked) renderPitchHub();
+    else {
+      cycleScreen.classList.remove('hidden');
+      groupActions.classList.add('hidden');
+      renderCycleStep();
+    }
+    return;
+  }
+
+  if (latestSession.clubId && latestSession.groupId) {
+    setModeButtonActive('club-btn');
+    const club = db.spaces.find((space) => space.id === latestSession.clubId && space.type === 'club');
+    const isMember = club?.members?.some((m) => m.userId === currentUser.id);
+    if (!club || !isMember) {
+      hideAllMainScreens();
+      modeScreen.classList.remove('hidden');
+      return;
+    }
+
+    activeClub = club;
+    const group = activeClub.groups?.find((item) => item.id === latestSession.groupId);
+    const member = activeClub.members?.find((m) => m.userId === currentUser.id);
+    if (group && member && (member.role === 'analyst' || member.role === 'portfolio_manager')) {
+      currentContext = 'club_group';
+      activeSession = getOrCreateClubGroupSession({
+        userId: currentUser.id,
+        clubId: activeClub.id,
+        groupId: group.id,
+        role: member.role,
+        sector: group.sector,
+        ticker: group.stockTicker,
+      });
+      activeSession.ticker = group.stockTicker;
+      activeSession.tickerLocked = Boolean(group.stockTicker);
+      currentSlideIndex = Math.max(0, HUB_SLIDES.findIndex((slide) => slide.key === (activeSession.lastOpenedSection || HUB_SLIDES[0].key)));
+      renderPitchHub();
+      return;
+    }
+
+    renderClubDashboard();
+    return;
+  }
+
+  hideAllMainScreens();
+  modeScreen.classList.remove('hidden');
+}
+
 function renderClubDashboard() {
   if (!activeClub) return;
   hideAllMainScreens();
@@ -463,7 +535,7 @@ signupForm?.addEventListener('submit', async (event) => {
 
   currentUser = createUser({ fullName, email });
   signupScreen.classList.add('hidden');
-  modeScreen.classList.remove('hidden');
+  resumeUserExperience();
 if (signupStatus) signupStatus.textContent = '';
   if (submitBtn) submitBtn.disabled = false;
 });
@@ -494,7 +566,7 @@ loginForm?.addEventListener('submit', async (event) => {
     if (!profile) throw new Error('No account found for that email.');
     currentUser = db.users.find((u) => u.email === email) || createUser({ fullName: profile.full_name || email, email });
     loginScreen.classList.add('hidden');
-    modeScreen.classList.remove('hidden');
+    resumeUserExperience();
     if (loginStatus) loginStatus.textContent = '';
   } catch (error) {
     if (loginStatus) loginStatus.textContent = error.message || 'Unable to log in right now.';
@@ -509,6 +581,7 @@ individualBtn?.addEventListener('click', () => {
   currentContext = 'individual';
   activeSession = getOrCreateSession(currentUser.id);
   currentSlideIndex = 0;
+  touchSession(activeSession, { lastOpenedSection: HUB_SLIDES[currentSlideIndex].key });
   hideAllMainScreens();
   cycleScreen.classList.remove('hidden');
   groupActions.classList.add('hidden');
@@ -524,8 +597,10 @@ clubBtn?.addEventListener('click', () => {
   groupTitle.textContent = 'Club setup';
 });
 
-classBtn?.addEventListener('click', () => { setModeButtonActive('class-btn'); renderClassPlaceholder(); });
-
+classBtn?.addEventListener('click', () => {
+  setModeButtonActive('class-btn');
+  renderClassPlaceholder();
+});
 groupActions?.addEventListener('submit', (event) => {
   event.preventDefault();
   if (!currentUser?.id || !groupSpaceName.value.trim()) return;
@@ -581,6 +656,8 @@ clubGroupsList?.addEventListener('click', (event) => {
     activeSession = getOrCreateClubGroupSession({ userId: currentUser.id, clubId: activeClub.id, groupId: group.id, role: member?.role || 'analyst', sector: group.sector, ticker: group.stockTicker });
     activeSession.ticker = group.stockTicker;
     activeSession.tickerLocked = Boolean(group.stockTicker);
+    currentSlideIndex = Math.max(0, HUB_SLIDES.findIndex((slide) => slide.key === (activeSession.lastOpenedSection || HUB_SLIDES[0].key)));
+    touchSession(activeSession, { lastOpenedSection: HUB_SLIDES[currentSlideIndex].key });
     renderPitchHub();
   }
 });
@@ -589,8 +666,7 @@ joinCycleBtn?.addEventListener('click', () => {
   if (!activeSession || activeSession.joinedCycle) return;
   activeSession.joinedCycle = true;
   activeSession.joinedAt = new Date().toISOString();
-  saveDb();
-  renderCycleStep();
+  touchSession(activeSession);  renderCycleStep();
 });
 
 lockTickerBtn?.addEventListener('click', () => {
@@ -605,14 +681,27 @@ lockTickerBtn?.addEventListener('click', () => {
 confirmLockBtn?.addEventListener('click', () => {
   if (!activeSession?.ticker) return;
   activeSession.tickerLocked = true;
-  saveDb();
+  touchSession(activeSession);
   lockModal.classList.add('hidden');
   renderPitchHub();
 });
 cancelLockBtn?.addEventListener('click', () => lockModal.classList.add('hidden'));
 
-prevSlideBtn?.addEventListener('click', () => { if (currentSlideIndex > 0) { currentSlideIndex -= 1; renderSlide(); } });
-nextSlideBtn?.addEventListener('click', () => { if (currentSlideIndex < HUB_SLIDES.length - 1) { currentSlideIndex += 1; renderSlide(); } });
+prevSlideBtn?.addEventListener('click', () => {
+  if (currentSlideIndex > 0) {
+    currentSlideIndex -= 1;
+    if (activeSession) touchSession(activeSession, { lastOpenedSection: HUB_SLIDES[currentSlideIndex].key });
+    renderSlide();
+  }
+});
+nextSlideBtn?.addEventListener('click', () => {
+  if (currentSlideIndex < HUB_SLIDES.length - 1) {
+    currentSlideIndex += 1;
+    if (activeSession) touchSession(activeSession, { lastOpenedSection: HUB_SLIDES[currentSlideIndex].key });
+    renderSlide();
+  }
+});
+
 
 toggleShortcutsBtn?.addEventListener('click', () => {
   slideShortcuts.classList.toggle('hidden');
@@ -644,7 +733,7 @@ saveSlideBtn?.addEventListener('click', () => {
 
   activeSession.slideResponses[slide.key] = response;
   pendingSlideImages = null;
-  saveDb();
+  touchSession(activeSession, { lastOpenedSection: slide.key });
   renderPitchHub();
 });
 
@@ -658,11 +747,11 @@ submitPitchBtn?.addEventListener('click', () => {
     const group = activeClub.groups.find((g) => g.id === activeSession.groupId);
     if (group) {
       activeClub.pitches.push({ groupId: group.id, groupName: group.name, ticker: activeSession.ticker, userName: currentUser.fullName, submittedAt: activeSession.submittedAt });
-      saveDb();
+      touchSession(activeSession);
     }
   }
 
-  saveDb();
+      touchSession(activeSession);
   renderPitchHub();
 });
 
