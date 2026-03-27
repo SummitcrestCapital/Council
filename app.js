@@ -125,7 +125,7 @@ let currentContext = 'individual';
 let presentationSlidesHtml = [];
 let presentationIndex = 0;
 
-function loadDb() {
+function loadDb(){
   const saved = localStorage.getItem(DB_KEY);
   if (!saved) return { users: [], sessions: [], spaces: [] };
   try {
