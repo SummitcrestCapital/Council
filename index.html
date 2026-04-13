@@ -36,9 +36,10 @@
 
       <section id="login-screen" class="panel hidden" aria-labelledby="login-title">
         <h2 id="login-title">Log in</h2>
-        <p class="panel-text">Enter your email to continue.</p>
+        <p class="panel-text">Enter your email and password to continue.</p>
         <form id="login-form" class="signup-form">
           <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+          <label>Password<input type="password" name="password" required minlength="8" autocomplete="current-password" /></label>
           <button type="submit" class="primary-btn">Continue</button>
         </form>
         <button id="back-to-signup-btn" class="secondary" type="button">Back to create account</button>

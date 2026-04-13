@@ -166,6 +166,7 @@ function createUser({ id, fullName, email }) {
   return user;
 }
 let cachedSupabaseClient = null;
+let supabaseAccessToken = null;
 
 async function getSupabaseClient() {
   if (cachedSupabaseClient) return cachedSupabaseClient;
@@ -200,6 +201,22 @@ async function createSupabaseAuthUserViaRest({ email, password, fullName }) {
   return payload;
 }
 
+async function signInSupabaseUserViaRest({ email, password }) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.msg || payload?.error_description || payload?.error || 'Invalid email or password.');
+  supabaseAccessToken = payload?.access_token || null;
+  return payload;
+}
+
 async function createSupabaseAuthUser({ email, password, fullName }) {
   const supabaseClient = await getSupabaseClient();
   if (!supabaseClient) return createSupabaseAuthUserViaRest({ email, password, fullName });
@@ -217,6 +234,34 @@ async function createSupabaseAuthUser({ email, password, fullName }) {
   return data;
 }
 
+async function signInSupabaseUser({ email, password }) {
+  const supabaseClient = await getSupabaseClient();
+  if (!supabaseClient) return signInSupabaseUserViaRest({ email, password });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message || 'Invalid email or password.');
+  return data;
+}
+
+async function getSupabaseAccessToken() {
+  const supabaseClient = await getSupabaseClient();
+  if (!supabaseClient) return supabaseAccessToken;
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) throw new Error(error.message || 'Unable to validate your session.');
+  return data?.session?.access_token || null;
+}
+
+async function buildSupabaseHeaders({ contentTypeJson = false, prefer = '' } = {}) {
+  const accessToken = await getSupabaseAccessToken();
+  if (!accessToken) throw new Error('Please log in with your password before creating or joining a club.');
+  const headers = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${accessToken}`,
+  };
+  if (contentTypeJson) headers['Content-Type'] = 'application/json';
+  if (prefer) headers.Prefer = prefer;
+  return headers;
+}
+
 async function findSupabaseProfileByEmail(email) {
   const supabaseClient = await getSupabaseClient();
   if (supabaseClient) {
@@ -227,10 +272,7 @@ async function findSupabaseProfileByEmail(email) {
 
   const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,full_name,username&username=eq.${encodeURIComponent(email)}&limit=1`, {
     method: 'GET',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
+    headers: await buildSupabaseHeaders(),
   });
   const payload = await response.json().catch(() => []);
   if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to verify account.');
@@ -326,10 +368,7 @@ async function fetchSupabaseClubByJoinCode(code) {
 
   const response = await fetch(`${SUPABASE_URL}/rest/v1/spaces?select=id,type,name,owner_id,join_code,created_at&type=eq.club&join_code=eq.${encodeURIComponent(normalized)}&limit=1`, {
     method: 'GET',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
+    headers: await buildSupabaseHeaders(),
   });
   const payload = await response.json().catch(() => []);
   if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to validate join code.');
@@ -352,12 +391,7 @@ async function createSupabaseClub({ name, description, ownerId, joinCode }) {
 
   const response = await fetch(`${SUPABASE_URL}/rest/v1/spaces`, {
     method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
+    headers: await buildSupabaseHeaders({ contentTypeJson: true, prefer: 'return=representation' }),
     body: JSON.stringify(payload),
   });
   const rows = await response.json().catch(() => []);
@@ -377,12 +411,7 @@ async function upsertSupabaseMembership({ userId, spaceId, role }) {
 
   const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/memberships`, {
     method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates',
-    },
+    headers: await buildSupabaseHeaders({ contentTypeJson: true, prefer: 'resolution=merge-duplicates' }),
     body: JSON.stringify(membershipPayload),
   });
   if (!insertResponse.ok) {
@@ -406,10 +435,7 @@ async function hydrateClubMembersFromSupabase(club) {
     } else {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=user_id,role,profiles:user_id(username,full_name)&space_id=eq.${encodeURIComponent(club.id)}`, {
         method: 'GET',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+        headers: await buildSupabaseHeaders(),
       });
       const payload = await response.json().catch(() => []);
       if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to load club members.');
@@ -753,6 +779,7 @@ try {
     fullName,
     email,
   });
+  await signInSupabaseUser({ email, password });
 } catch (error) {
   if (signupStatus) signupStatus.textContent = error.message || 'Unable to create account right now.';
   if (submitBtn) submitBtn.disabled = false;
@@ -792,11 +819,13 @@ loginForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(loginForm);
   const email = String(formData.get('email') || '').trim().toLowerCase();
-  if (!email) return;
+  const password = String(formData.get('password') || '');
+  if (!email || !password) return;
   const submitBtn = loginForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
   if (loginStatus) loginStatus.textContent = 'Checking account...';
   try {
+    await signInSupabaseUser({ email, password });
     const profile = await findSupabaseProfileByEmail(email);
     if (!profile) throw new Error('No account found for that email.');
 currentUser =
@@ -1055,4 +1084,3 @@ presentationCommunityBtn?.addEventListener('click', () => {
   communityView.classList.remove('hidden');
 });
 communityHomeBtn?.addEventListener('click', () => renderHomeScreen());
-
