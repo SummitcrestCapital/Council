@@ -424,29 +424,53 @@ async function hydrateClubMembersFromSupabase(club) {
   if (!club?.id) return club;
   try {
     const supabaseClient = await getSupabaseClient();
-    let rows = [];
+    let membershipRows = [];
+    let profileById = new Map();
     if (supabaseClient) {
       const { data, error } = await supabaseClient
         .from('memberships')
-        .select('user_id, role, profiles:user_id(username, full_name)')
+        .select('user_id, role')
         .eq('space_id', club.id);
       if (error) throw new Error(error.message || 'Unable to load club members.');
-      rows = data || [];
+      membershipRows = data || [];
+      const userIds = [...new Set(membershipRows.map((row) => row.user_id).filter(Boolean))];
+      if (userIds.length) {
+        const { data: profileRows, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('id, username, full_name')
+          .in('id', userIds);
+        if (profileError) throw new Error(profileError.message || 'Unable to load member profiles.');
+        profileById = new Map((profileRows || []).map((profile) => [profile.id, profile]));
+      }
     } else {
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=user_id,role,profiles:user_id(username,full_name)&space_id=eq.${encodeURIComponent(club.id)}`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/memberships?select=user_id,role&space_id=eq.${encodeURIComponent(club.id)}`, {
         method: 'GET',
         headers: await buildSupabaseHeaders(),
       });
       const payload = await response.json().catch(() => []);
       if (!response.ok) throw new Error(payload?.message || payload?.hint || 'Unable to load club members.');
-      rows = Array.isArray(payload) ? payload : [];
+      membershipRows = Array.isArray(payload) ? payload : [];
+      const userIds = [...new Set(membershipRows.map((row) => row.user_id).filter(Boolean))];
+      if (userIds.length) {
+        const quotedIds = userIds.map((id) => `"${id}"`).join(',');
+        const profileResponse = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username,full_name&id=in.(${encodeURIComponent(quotedIds)})`, {
+          method: 'GET',
+          headers: await buildSupabaseHeaders(),
+        });
+        const profilePayload = await profileResponse.json().catch(() => []);
+        if (!profileResponse.ok) throw new Error(profilePayload?.message || profilePayload?.hint || 'Unable to load member profiles.');
+        profileById = new Map((Array.isArray(profilePayload) ? profilePayload : []).map((profile) => [profile.id, profile]));
+      }
     }
 
-    const members = rows.map((row) => ({
-      userId: row.user_id,
-      role: row.role || 'member',
-      displayName: row.profiles?.username || row.profiles?.full_name || row.user_id,
-    }));
+    const members = membershipRows.map((row) => {
+      const profile = profileById.get(row.user_id);
+      return {
+        userId: row.user_id,
+        role: row.role || 'member',
+        displayName: profile?.username || profile?.full_name || row.user_id,
+      };
+    });
     if (members.length) club.members = members;
     saveDb();
   } catch (error) {
